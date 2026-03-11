@@ -1,6 +1,6 @@
 # TicketBox
 
-A full-stack event ticket booking platform built with Go microservices and Next.js. Users can browse events, view interactive seat maps, select individual seats, and purchase tickets with real-time availability.
+A full-stack event ticket booking platform built with Go microservices and Next.js, designed to **solve the double booking problem** under extreme concurrency (100,000+ simultaneous users). Users can browse events, view interactive seat maps, select individual seats, and purchase tickets with real-time availability — guaranteed by database-level locking and atomic operations.
 
 ## Architecture
 
@@ -201,6 +201,77 @@ All endpoints are served through the gateway at `http://localhost:8000`.
 | GET | `/api/bookings` | List current user's bookings |
 | GET | `/api/bookings/:id` | Get booking details |
 | POST | `/api/bookings/:id/cancel` | Cancel a booking |
+
+## Solving the Double Booking Problem
+
+The core engineering challenge of any ticket platform: when 100,000 users try to book the last ticket at the same time, exactly **one** should succeed and **99,999** should get a clean "sold out" error — never should two users be charged for the same seat.
+
+### The Problem
+
+```
+   User A reads: 1 ticket available ──┐
+                                      ├──▶ Both see "available" ──▶ Both book ──▶ OVERSOLD
+   User B reads: 1 ticket available ──┘
+```
+
+A naive implementation reads availability, checks it, then decrements — a classic **race condition**. Under high concurrency this guarantees overselling.
+
+### The Solution: Pessimistic Locking (Default)
+
+The booking service uses `SELECT ... FOR UPDATE` to acquire a row-level lock on the ticket tier **before** reading availability. This serializes concurrent booking attempts at the database level:
+
+```
+   User A: BEGIN → SELECT FOR UPDATE (acquires lock) → decrement → COMMIT ✓
+   User B: BEGIN → SELECT FOR UPDATE (blocks, waits) → reads updated count → "sold out" ✗
+```
+
+**How it works in the booking flow:**
+
+1. **Booking service** receives a `CreateBooking` request
+2. Opens a database transaction
+3. Calls **event service** `UpdateTicketAvailability` via gRPC
+4. Event service executes `SELECT ... FOR UPDATE` on the `ticket_tiers` row — this **locks the row** so no other transaction can read or modify it
+5. Checks `available_quantity >= requested_quantity`
+6. If yes: decrements atomically and commits
+7. If no: returns `RESOURCE_EXHAUSTED` error, booking is rejected
+8. Lock is released on commit/rollback — next waiting request proceeds
+
+### Optimistic Locking (Alternative)
+
+Configurable via `BOOKING_MODE=optimistic`. Instead of locking, uses a `version` column:
+
+```sql
+UPDATE ticket_tiers
+SET available_quantity = available_quantity - $1, version = version + 1
+WHERE id = $2 AND version = $3 AND available_quantity >= $1
+```
+
+If another transaction modified the row first, `version` won't match, zero rows are updated, and the booking retries or fails. Better throughput under low contention, but more retries under high contention.
+
+### Load Testing
+
+Verify the double booking protection works under pressure:
+
+```bash
+cd backend
+make test-load
+```
+
+This simulates **100,000 concurrent booking requests** against a single event tier with limited tickets. The test asserts:
+- Total booked tickets never exceeds available quantity
+- No duplicate bookings for the same seat
+- All failed requests receive proper error codes
+- System remains responsive under load
+
+### Why This Architecture Prevents Double Booking
+
+| Layer | Protection |
+|-------|-----------|
+| **Database** | `SELECT FOR UPDATE` row-level locks (pessimistic) or version checks (optimistic) |
+| **Event Service** | Atomic availability check + decrement in a single transaction |
+| **Booking Service** | Transactional booking creation — either everything commits or nothing does |
+| **Kafka** | Async notifications decouple slow operations (email, etc.) from the critical booking path |
+| **Per-service databases** | Each service owns its data — no cross-service locks or distributed transactions needed |
 
 ## Key Features
 
