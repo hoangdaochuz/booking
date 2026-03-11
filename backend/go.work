@@ -1,0 +1,10 @@
+go 1.25.5
+
+use (
+	./pkg
+	./services/booking
+	./services/event
+	./services/gateway
+	./services/notification
+	./services/user
+)

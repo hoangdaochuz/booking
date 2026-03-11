@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package booking.v1;
+
+option go_package = "github.com/ticketbox/pkg/proto/booking/v1;bookingv1";
+
+import "google/protobuf/timestamp.proto";
+
+service BookingService {
+    rpc CreateBooking(CreateBookingRequest) returns (BookingDetail);
+    rpc GetBooking(GetBookingRequest) returns (BookingDetail);
+    rpc ListUserBookings(ListUserBookingsRequest) returns (ListUserBookingsResponse);
+    rpc CancelBooking(CancelBookingRequest) returns (BookingDetail);
+}
+
+message CreateBookingRequest {
+    string user_id = 1;
+    string event_id = 2;
+    repeated BookingItemRequest items = 3;
+    string booking_mode = 4;
+}
+
+message BookingItemRequest {
+    string ticket_tier_id = 1;
+    int32 quantity = 2;
+}
+
+message GetBookingRequest {
+    string booking_id = 1;
+}
+
+message ListUserBookingsRequest {
+    string user_id = 1;
+    int32 page = 2;
+    int32 page_size = 3;
+}
+
+message ListUserBookingsResponse {
+    repeated BookingDetail bookings = 1;
+    int32 total = 2;
+}
+
+message CancelBookingRequest {
+    string booking_id = 1;
+    string user_id = 2;
+}
+
+message BookingDetail {
+    string id = 1;
+    string user_id = 2;
+    string event_id = 3;
+    string status = 4;
+    int64 total_amount_cents = 5;
+    repeated BookingItem items = 6;
+    google.protobuf.Timestamp created_at = 7;
+}
+
+message BookingItem {
+    string id = 1;
+    string ticket_tier_id = 2;
+    string tier_name = 3;
+    int32 quantity = 4;
+    int64 unit_price_cents = 5;
+}

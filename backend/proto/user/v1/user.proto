@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "github.com/ticketbox/pkg/proto/user/v1;userv1";
+
+import "google/protobuf/timestamp.proto";
+
+service UserService {
+    rpc Register(RegisterRequest) returns (AuthResponse);
+    rpc Login(LoginRequest) returns (AuthResponse);
+    rpc RefreshToken(RefreshTokenRequest) returns (AuthResponse);
+    rpc Logout(LogoutRequest) returns (LogoutResponse);
+    rpc GetProfile(GetProfileRequest) returns (UserProfile);
+    rpc UpdateProfile(UpdateProfileRequest) returns (UserProfile);
+    rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+}
+
+message RegisterRequest {
+    string email = 1;
+    string password = 2;
+    string name = 3;
+}
+
+message LoginRequest {
+    string email = 1;
+    string password = 2;
+}
+
+message AuthResponse {
+    string access_token = 1;
+    string refresh_token = 2;
+    UserProfile user = 3;
+}
+
+message RefreshTokenRequest {
+    string refresh_token = 1;
+}
+
+message LogoutRequest {
+    string access_token = 1;
+}
+
+message LogoutResponse {}
+
+message GetProfileRequest {
+    string user_id = 1;
+}
+
+message UpdateProfileRequest {
+    string user_id = 1;
+    string name = 2;
+    string email = 3;
+}
+
+message UserProfile {
+    string id = 1;
+    string email = 2;
+    string name = 3;
+    string role = 4;
+    google.protobuf.Timestamp created_at = 5;
+}
+
+message ValidateTokenRequest {
+    string access_token = 1;
+}
+
+message ValidateTokenResponse {
+    bool valid = 1;
+    string user_id = 2;
+    string email = 3;
+    string role = 4;
+}

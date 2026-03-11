@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package event.v1;
+
+option go_package = "github.com/ticketbox/pkg/proto/event/v1;eventv1";
+
+import "google/protobuf/timestamp.proto";
+
+service EventService {
+    rpc CreateEvent(CreateEventRequest) returns (EventDetail);
+    rpc GetEvent(GetEventRequest) returns (EventDetail);
+    rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
+    rpc UpdateEvent(UpdateEventRequest) returns (EventDetail);
+    rpc DeleteEvent(DeleteEventRequest) returns (DeleteEventResponse);
+    rpc GetTicketAvailability(GetTicketAvailabilityRequest) returns (TicketAvailabilityResponse);
+    rpc UpdateTicketAvailability(UpdateTicketAvailabilityRequest) returns (TicketTier);
+}
+
+message CreateEventRequest {
+    string title = 1;
+    string description = 2;
+    string category = 3;
+    string venue = 4;
+    string location = 5;
+    google.protobuf.Timestamp date = 6;
+    string image_url = 7;
+    repeated CreateTicketTierRequest tiers = 8;
+}
+
+message CreateTicketTierRequest {
+    string name = 1;
+    int64 price_cents = 2;
+    int32 total_quantity = 3;
+}
+
+message GetEventRequest {
+    string event_id = 1;
+}
+
+message ListEventsRequest {
+    string category = 1;
+    string search = 2;
+    int32 page = 3;
+    int32 page_size = 4;
+}
+
+message ListEventsResponse {
+    repeated EventDetail events = 1;
+    int32 total = 2;
+    int32 page = 3;
+    int32 page_size = 4;
+}
+
+message UpdateEventRequest {
+    string event_id = 1;
+    string title = 2;
+    string description = 3;
+    string category = 4;
+    string venue = 5;
+    string location = 6;
+    google.protobuf.Timestamp date = 7;
+    string image_url = 8;
+}
+
+message DeleteEventRequest {
+    string event_id = 1;
+}
+
+message DeleteEventResponse {}
+
+message EventDetail {
+    string id = 1;
+    string title = 2;
+    string description = 3;
+    string category = 4;
+    string venue = 5;
+    string location = 6;
+    google.protobuf.Timestamp date = 7;
+    string image_url = 8;
+    string status = 9;
+    repeated TicketTier tiers = 10;
+    google.protobuf.Timestamp created_at = 11;
+}
+
+message TicketTier {
+    string id = 1;
+    string event_id = 2;
+    string name = 3;
+    int64 price_cents = 4;
+    int32 total_quantity = 5;
+    int32 available_quantity = 6;
+    int32 version = 7;
+}
+
+message GetTicketAvailabilityRequest {
+    string tier_id = 1;
+}
+
+message TicketAvailabilityResponse {
+    string tier_id = 1;
+    int32 available_quantity = 2;
+    int32 version = 3;
+    int64 price_cents = 4;
+}
+
+message UpdateTicketAvailabilityRequest {
+    string tier_id = 1;
+    int32 quantity_delta = 2;
+    int32 expected_version = 3;
+    string mode = 4;
+}

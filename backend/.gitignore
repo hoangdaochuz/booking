@@ -1,0 +1,14 @@
+bin/
+vendor/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+.idea/
+.vscode/
+*.swp
+.env
+.env.*
+!.env.example
+proto/**/*.pb.go
