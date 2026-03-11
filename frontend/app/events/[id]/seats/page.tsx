@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Check, ChevronRight, X, Armchair } from "lucide-react";
+import { Check, ChevronRight, X, Armchair, Loader2 } from "lucide-react";
 import { useBooking } from "@/lib/booking-context";
 import { VenueMap } from "@/components/venue-map";
 import SectionPicker from "@/components/section-picker";
@@ -11,7 +11,7 @@ import type { Seat, SeatRow, VenueSection, SelectedSeat } from "@/lib/types";
 export default function SeatsPage() {
   const params = useParams();
   const router = useRouter();
-  const { getEvent, setCart } = useBooking();
+  const { getEvent, setCart, isLoading } = useBooking();
 
   const eventId = params.id as string;
   const event = getEvent(eventId);
@@ -39,6 +39,14 @@ export default function SeatsPage() {
     }
     return Array.from(seen.values());
   }, [venueLayout]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 size={32} className="animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!event || !venueLayout) {
     return (
