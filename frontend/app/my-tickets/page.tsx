@@ -1,13 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle, Eye, Calendar, MapPin } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CheckCircle, Eye, Calendar, MapPin, Loader2 } from "lucide-react";
 import { useBooking } from "@/lib/booking-context";
+import { useAuth } from "@/lib/auth-context";
+import { apiClient } from "@/lib/api/client";
+import { transformBookingToTicket } from "@/lib/api/transformers";
+import { PurchasedTicket } from "@/lib/types";
 
 export default function MyTicketsPage() {
-  const { purchasedTickets, getEvent, lastPurchaseSuccess, clearSuccessFlag } = useBooking();
+  const router = useRouter();
+  const { purchasedTickets: contextTickets, getEvent, lastPurchaseSuccess, clearSuccessFlag } = useBooking();
+  const { user } = useAuth();
   const [showSuccess, setShowSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState<"Upcoming" | "Past">("Upcoming");
+  const [apiTickets, setApiTickets] = useState<PurchasedTicket[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (lastPurchaseSuccess) {
@@ -16,7 +25,43 @@ export default function MyTicketsPage() {
     }
   }, [lastPurchaseSuccess, clearSuccessFlag]);
 
-  const filtered = purchasedTickets.filter((t) =>
+  // Fetch bookings from API
+  useEffect(() => {
+    if (!user) return;
+    setIsLoading(true);
+    apiClient
+      .listBookings(1, 50)
+      .then((res) => {
+        setApiTickets(res.bookings.map((b) => transformBookingToTicket(b)));
+      })
+      .catch(() => {
+        // API unavailable, rely on context tickets
+      })
+      .finally(() => setIsLoading(false));
+  }, [user]);
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96 gap-4">
+        <p className="text-muted text-lg">Please sign in to view your tickets.</p>
+        <button
+          onClick={() => router.push("/login")}
+          className="bg-primary hover:bg-primary-hover text-white font-medium rounded-full px-6 h-12 transition-colors"
+        >
+          Sign In
+        </button>
+      </div>
+    );
+  }
+
+  // Merge: use API tickets, but prefer context tickets for just-purchased ones (have seat details)
+  const contextIds = new Set(contextTickets.map((t) => t.id));
+  const mergedTickets = [
+    ...contextTickets,
+    ...apiTickets.filter((t) => !contextIds.has(t.id)),
+  ];
+
+  const filtered = mergedTickets.filter((t) =>
     activeTab === "Upcoming" ? t.status === "Upcoming" : t.status === "Confirmed"
   );
 
@@ -55,46 +100,56 @@ export default function MyTicketsPage() {
         </div>
       </div>
 
+      {/* Loading */}
+      {isLoading && (
+        <div className="flex justify-center py-8">
+          <Loader2 size={24} className="animate-spin text-primary" />
+        </div>
+      )}
+
       {/* Ticket List */}
-      {filtered.length === 0 && purchasedTickets.length === 0 ? (
+      {!isLoading && filtered.length === 0 && mergedTickets.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-4">
           <div className="w-16 h-16 rounded-full bg-tag-bg flex items-center justify-center">
             <Calendar size={24} className="text-muted" />
           </div>
           <p className="text-muted">No tickets yet. Browse events to get started!</p>
         </div>
-      ) : filtered.length === 0 ? (
+      ) : !isLoading && filtered.length === 0 ? (
         <p className="text-muted py-8 text-center">No {activeTab.toLowerCase()} tickets.</p>
       ) : (
         <div className="flex flex-col gap-4">
           {filtered.map((ticket) => {
             const event = getEvent(ticket.eventId);
-            if (!event) return null;
             return (
               <div
                 key={ticket.id}
                 className="flex items-center bg-card border border-border rounded-lg shadow-sm overflow-hidden"
               >
-                <div className="w-40 h-28 shrink-0">
-                  <img
-                    src={event.image}
-                    alt={event.title}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+                {event && (
+                  <div className="w-40 h-28 shrink-0">
+                    <img
+                      src={event.image}
+                      alt={event.title}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
                 <div className="flex-1 flex items-center justify-between p-5">
                   <div className="flex flex-col gap-1.5">
-                    <h3 className="font-semibold">{event.title}</h3>
-                    <div className="flex items-center gap-4 text-sm text-muted">
-                      <span className="flex items-center gap-1">
-                        <Calendar size={12} />
-                        {event.date} · {event.time}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MapPin size={12} />
-                        {event.venue}, {event.location}
-                      </span>
-                    </div>
+                    <h3 className="font-semibold">{event?.title || "Event"}</h3>
+                    {event && (
+                      <div className="flex items-center gap-4 text-sm text-muted">
+                        <span className="flex items-center gap-1">
+                          <Calendar size={12} />
+                          {event.date} · {event.time}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MapPin size={12} />
+                          {event.venue}, {event.location}
+                        </span>
+                      </div>
+                    )}
                     {ticket.seats && ticket.seats.length > 0 ? (
                       <p className="text-xs text-muted">
                         Seats: {ticket.seats.map(s => `${s.section} ${s.row} Seat ${s.seat}`).join(", ")}

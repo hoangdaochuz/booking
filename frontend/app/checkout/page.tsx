@@ -2,26 +2,38 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { CreditCard, Check, Loader2 } from "lucide-react";
 import { useBooking } from "@/lib/booking-context";
+import { useAuth } from "@/lib/auth-context";
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { cart, getEvent, purchaseTickets } = useBooking();
+  const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    cardNumber: "",
-    expiry: "",
-    cvv: "",
-  });
+  const [error, setError] = useState("");
 
   if (!cart) {
     return (
       <div className="flex items-center justify-center h-96">
         <p className="text-muted text-lg">No items in cart. Please select tickets first.</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="flex flex-col items-center gap-4">
+          <p className="text-muted text-lg">Please sign in to complete your purchase.</p>
+          <Link
+            href="/login"
+            className="bg-primary hover:bg-primary-hover text-white font-medium rounded-full px-6 h-12 flex items-center transition-colors"
+          >
+            Sign In
+          </Link>
+        </div>
       </div>
     );
   }
@@ -36,12 +48,13 @@ export default function CheckoutPage() {
 
   async function handlePay() {
     setIsProcessing(true);
-    const success = await purchaseTickets(form.firstName, form.email);
+    setError("");
+    const success = await purchaseTickets(user!.name, user!.email);
     setIsProcessing(false);
     if (success) {
       router.push("/my-tickets");
     } else {
-      alert("Purchase failed — tickets may have sold out. This is the double booking problem!");
+      setError("Purchase failed — tickets may have sold out. Please try again.");
     }
   }
 
@@ -98,78 +111,33 @@ export default function CheckoutPage() {
 
       {/* Content */}
       <div className="flex gap-8 px-12 py-8">
-        {/* Payment Form */}
+        {/* Booking Info */}
         <div className="flex-1">
           <div className="bg-card border border-border rounded-lg p-8 shadow-sm flex flex-col gap-6">
-            <h2 className="text-lg font-bold">Payment Details</h2>
-
-            <div className="grid grid-cols-2 gap-4">
+            <h2 className="text-lg font-bold">Booking Confirmation</h2>
+            <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted">First Name</label>
-                <input
-                  type="text"
-                  placeholder="John"
-                  value={form.firstName}
-                  onChange={(e) => setForm({ ...form, firstName: e.target.value })}
-                  className="border border-border rounded-lg px-3 py-2.5 text-sm bg-card focus:outline-none focus:border-primary transition-colors"
-                />
+                <span className="text-xs font-medium text-muted">Name</span>
+                <span className="text-sm font-medium">{user.name}</span>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted">Last Name</label>
-                <input
-                  type="text"
-                  placeholder="Doe"
-                  value={form.lastName}
-                  onChange={(e) => setForm({ ...form, lastName: e.target.value })}
-                  className="border border-border rounded-lg px-3 py-2.5 text-sm bg-card focus:outline-none focus:border-primary transition-colors"
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted">Email Address</label>
-              <input
-                type="email"
-                placeholder="john.doe@email.com"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="border border-border rounded-lg px-3 py-2.5 text-sm bg-card focus:outline-none focus:border-primary transition-colors"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted">Card Number</label>
-              <input
-                type="text"
-                placeholder="4242 4242 4242 4242"
-                value={form.cardNumber}
-                onChange={(e) => setForm({ ...form, cardNumber: e.target.value })}
-                className="border border-border rounded-lg px-3 py-2.5 text-sm bg-card focus:outline-none focus:border-primary transition-colors"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted">Expiry Date</label>
-                <input
-                  type="text"
-                  placeholder="12/26"
-                  value={form.expiry}
-                  onChange={(e) => setForm({ ...form, expiry: e.target.value })}
-                  className="border border-border rounded-lg px-3 py-2.5 text-sm bg-card focus:outline-none focus:border-primary transition-colors"
-                />
+                <span className="text-xs font-medium text-muted">Email</span>
+                <span className="text-sm font-medium">{user.email}</span>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted">CVV</label>
-                <input
-                  type="text"
-                  placeholder="•••"
-                  value={form.cvv}
-                  onChange={(e) => setForm({ ...form, cvv: e.target.value })}
-                  className="border border-border rounded-lg px-3 py-2.5 text-sm bg-card focus:outline-none focus:border-primary transition-colors"
-                />
+                <span className="text-xs font-medium text-muted">Selected Seats</span>
+                <div className="flex flex-col gap-1">
+                  {cart.seats.map((seat) => (
+                    <span key={seat.seatId} className="text-sm">
+                      {seat.sectionName}, {seat.rowLabel}, Seat {seat.seatLabel}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
+            {error && (
+              <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{error}</div>
+            )}
           </div>
         </div>
 
@@ -222,7 +190,7 @@ export default function CheckoutPage() {
                 ) : (
                   <>
                     <CreditCard size={16} />
-                    Pay Now
+                    Confirm Booking
                   </>
                 )}
               </button>

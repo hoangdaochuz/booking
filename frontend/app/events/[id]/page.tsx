@@ -2,14 +2,22 @@
 
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Calendar, MapPin, Music, Ticket, ChevronRight } from "lucide-react";
+import { Calendar, MapPin, Music, Ticket, ChevronRight, Loader2 } from "lucide-react";
 import { useBooking } from "@/lib/booking-context";
 
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { getEvent } = useBooking();
+  const { getEvent, isLoading } = useBooking();
   const event = getEvent(id);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 size={32} className="animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!event) {
     return (

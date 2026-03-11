@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Search, User } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Search, User, LogOut } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 const navLinks = [
   { href: "/", label: "Discover" },
@@ -13,6 +14,13 @@ const navLinks = [
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, isLoading, logout } = useAuth();
+
+  async function handleLogout() {
+    await logout();
+    router.push("/");
+  }
 
   return (
     <nav className="flex items-center justify-between h-16 px-12 bg-card border-b border-border w-full shrink-0">
@@ -39,12 +47,32 @@ export function Navbar() {
           <Search size={14} className="text-muted" />
           <span className="text-sm text-muted">Search...</span>
         </div>
-        <Link
-          href="/my-tickets"
-          className="flex items-center justify-center w-10 h-10 rounded-full bg-tag-bg border border-border"
-        >
-          <User size={18} className="text-muted" />
-        </Link>
+        {isLoading ? null : user ? (
+          <div className="flex items-center gap-3">
+            <Link
+              href="/my-tickets"
+              className="text-sm font-medium text-muted hover:text-primary transition-colors"
+            >
+              My Tickets
+            </Link>
+            <span className="text-sm font-medium">{user.name}</span>
+            <button
+              onClick={handleLogout}
+              className="flex items-center justify-center w-10 h-10 rounded-full bg-tag-bg border border-border hover:bg-red-50 transition-colors"
+              title="Logout"
+            >
+              <LogOut size={16} className="text-muted" />
+            </button>
+          </div>
+        ) : (
+          <Link
+            href="/login"
+            className="flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-white font-medium rounded-full px-5 h-10 text-sm transition-colors"
+          >
+            <User size={14} />
+            Sign In
+          </Link>
+        )}
       </div>
     </nav>
   );

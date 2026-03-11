@@ -2,21 +2,37 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Ticket, Sparkles } from "lucide-react";
+import { Ticket, Sparkles, Loader2 } from "lucide-react";
 import { useBooking } from "@/lib/booking-context";
 import { EventCard } from "@/components/event-card";
 
 const categories = ["All", "Concerts", "Sports", "Films"] as const;
 
 export default function HomePage() {
-  const { events } = useBooking();
+  const { events, isLoading } = useBooking();
   const [activeCategory, setActiveCategory] = useState<string>("All");
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 size={32} className="animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const featured = events.find((e) => e.featured) || events[0];
   const filteredEvents =
     activeCategory === "All"
       ? events
       : events.filter((e) => e.category === activeCategory);
+
+  if (!featured) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <p className="text-muted text-lg">No events available.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col">
