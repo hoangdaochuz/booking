@@ -1,0 +1,148 @@
+# C3 code-map: maps component and ref IDs to source file glob patterns.
+# Edit patterns, then verify with: c3x coverage
+
+# Components — Gateway (c3-1)
+c3-101:
+  - backend/services/gateway/internal/router/**
+  - backend/services/gateway/cmd/**
+c3-102:
+  - backend/services/gateway/internal/middleware/**
+c3-110:
+  - backend/services/gateway/internal/handler/auth_handler.go
+c3-111:
+  - backend/services/gateway/internal/handler/event_handler.go
+c3-112:
+  - backend/services/gateway/internal/handler/booking_handler.go
+c3-113:
+  - backend/services/gateway/internal/handler/user_handler.go
+
+# Components — User Service (c3-2)
+c3-201:
+  - backend/services/user/internal/grpc/**
+  - backend/services/user/cmd/**
+c3-202:
+  - backend/services/user/internal/repository/**
+c3-210:
+  - backend/services/user/internal/service/**
+c3-211:
+  - backend/services/user/internal/service/**
+
+# Components — Event Service (c3-3)
+c3-301:
+  - backend/services/event/internal/grpc/**
+  - backend/services/event/cmd/**
+c3-302:
+  - backend/services/event/internal/repository/**
+c3-310:
+  - backend/services/event/internal/service/**
+c3-311:
+  - backend/services/event/internal/service/**
+
+# Components — Booking Service (c3-4)
+c3-401:
+  - backend/services/booking/internal/grpc/**
+  - backend/services/booking/cmd/**
+c3-402:
+  - backend/services/booking/internal/repository/**
+c3-410:
+  - backend/services/booking/internal/service/**
+c3-411:
+  - backend/services/booking/internal/service/**
+
+# Components — Notification Service (c3-5)
+c3-501:
+  - backend/services/notification/internal/kafka/**
+  - backend/services/notification/cmd/**
+c3-502:
+  - backend/services/notification/internal/repository/**
+c3-510:
+  - backend/services/notification/internal/service/**
+
+# Components — Frontend (c3-6)
+c3-601:
+  - frontend/lib/api/client.ts
+c3-602:
+  - frontend/lib/auth-context.tsx
+c3-603:
+  - frontend/lib/booking-context.tsx
+c3-604:
+  - frontend/lib/api/transformers.ts
+  - frontend/lib/api/types.ts
+c3-610:
+  - frontend/app/page.tsx
+  - frontend/components/event-card.tsx
+c3-611:
+  - frontend/app/events/**
+  - frontend/components/venue-map.tsx
+  - frontend/components/seat-legend.tsx
+  - frontend/components/seat-tooltip.tsx
+  - frontend/components/section-picker.tsx
+  - frontend/lib/api/generate-venue-layout.ts
+c3-612:
+  - frontend/app/checkout/**
+c3-613:
+  - frontend/app/my-tickets/**
+c3-614:
+  - frontend/app/login/**
+  - frontend/app/register/**
+
+# Components — Shared Backend (c3-7)
+c3-701:
+  - backend/pkg/config/**
+c3-702:
+  - backend/pkg/database/**
+c3-703:
+  - backend/pkg/kafka/**
+c3-704:
+  - backend/pkg/middleware/**
+c3-705:
+  - backend/pkg/proto/**
+
+# Refs
+ref-concurrency-control: []
+ref-data-shape-mapping: []
+ref-grpc-service-structure: []
+ref-jwt-auth-flow: []
+ref-mock-data-fallback: []
+ref-outbox-pattern: []
+ref-repository-pattern: []
+
+# Exclusions (not counted in coverage)
+_exclude:
+  - "**/*_test.go"
+  - "**/go.sum"
+  - "**/node_modules/**"
+  - "**/.next/**"
+  - "**/migrations/**"
+  - "**/Dockerfile"
+  - "**/Makefile"
+  - "**/*.proto"
+  - backend/docker-compose.yml
+  - backend/go.work
+  - backend/go.work.sum
+  - backend/scripts/**
+  - frontend/public/**
+  - frontend/package-lock.json
+  - frontend/tsconfig.json
+  - frontend/next.config.ts
+  - frontend/postcss.config.mjs
+  - frontend/tailwind.config.ts
+  - frontend/.env*
+  - frontend/next-env.d.ts
+  - frontend/app/layout.tsx
+  - frontend/app/globals.css
+  - frontend/components/navbar.tsx
+  - frontend/lib/types.ts
+  - frontend/lib/mock-data.ts
+  - design/**
+  - docs/**
+  - "**/*.md"
+  - "**/go.mod"
+  - "**/.gitignore"
+  - "**/bin/**"
+  - backend/services/*/internal/domain/**
+  - backend/services/*/internal/kafka/producer.go
+  - backend/.env*
+  - frontend/eslint.config.mjs
+  - frontend/package.json
+  - frontend/app/favicon.ico
