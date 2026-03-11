@@ -67,8 +67,9 @@ export function BookingProvider({ children }: { children: React.ReactNode }) {
         // Group seats by tier/section to create booking items
         const itemMap = new Map<string, { ticket_tier_id: string; quantity: number }>();
         for (const seat of cart.seats) {
-          // Find the tier matching this seat's section
-          const tier = event.tiers.find((t) => t.name === seat.sectionName);
+          // Find the section in venue layout to get the tier, then match with event.tiers
+          const section = event.venueLayout?.sections.find((s) => s.name === seat.sectionName);
+          const tier = section ? event.tiers.find((t) => t.name === section.tier) : null;
           if (tier) {
             const existing = itemMap.get(tier.id);
             if (existing) {
