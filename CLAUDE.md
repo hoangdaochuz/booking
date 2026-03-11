@@ -76,3 +76,11 @@ The critical path: Booking Service → Event Service `UpdateTicketAvailability` 
 ### Data Shape Mapping
 
 Backend returns `price_cents` (int64), `image_url`, `available_quantity`, `total_amount_cents`. Frontend expects `price` (number, dollars), `image`, `available`, `totalPrice`. Transformers in `lib/api/transformers.ts` handle all conversions.
+
+## Architecture Docs (C3)
+
+This project uses C3 docs in `.c3/`.
+For architecture questions, changes, audits, file context → `/c3`.
+Operations: query, audit, change, ref, sweep.
+File lookup: `c3x lookup <file-or-glob>` maps files/directories to components + refs.
+Code-map coverage: 100% of source files mapped to components.
