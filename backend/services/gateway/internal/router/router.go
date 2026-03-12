@@ -36,6 +36,7 @@ func SetupRouter(
 
 		api.GET("/events", eventHandler.ListEvents)
 		api.GET("/events/:id", eventHandler.GetEvent)
+		api.GET("/seats", eventHandler.GetSeats)
 
 		protected := api.Group("")
 		protected.Use(middleware.AuthMiddleware(userClient, redisClient))

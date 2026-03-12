@@ -49,6 +49,7 @@ export interface SelectedSeat {
   seatLabel: string;
   seatId: string;
   price: number;
+  tierId: string;
 }
 
 export interface Event {

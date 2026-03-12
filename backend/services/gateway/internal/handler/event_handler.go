@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
@@ -57,6 +58,55 @@ func (h *EventHandler) GetEvent(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, toEventJSON(resp))
+}
+
+func (h *EventHandler) GetSeats(c *gin.Context) {
+	eventID := c.Query("event_id")
+	if eventID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "event_id is required"})
+		return
+	}
+
+	tierID := c.Query("ticket_tier_id")
+
+	resp, err := h.eventClient.GetSeats(c.Request.Context(), &eventv1.GetSeatsRequest{
+		EventId:      eventID,
+		TicketTierId: tierID,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get seats", "details": err.Error()})
+		return
+	}
+
+	seats := make([]gin.H, 0)
+	for _, seat := range resp.Seats {
+		// Parse position JSON string into object
+		var position map[string]interface{}
+		_ = json.Unmarshal([]byte(seat.Position), &position)
+
+		// Convert empty strings to null for nullable fields
+		var bookingID, orderID interface{}
+		if seat.BookingId != "" {
+			bookingID = seat.BookingId
+		}
+		if seat.OrderId != "" {
+			orderID = seat.OrderId
+		}
+
+		seats = append(seats, gin.H{
+			"id":             seat.Id,
+			"event_id":       seat.EventId,
+			"ticket_tier_id": seat.TicketTierId,
+			"status":         seat.Status,
+			"booking_id":     bookingID,
+			"order_id":       orderID,
+			"position":       position,
+			"created_at":     seat.CreatedAt.AsTime().Format(time.RFC3339),
+			"updated_at":     seat.UpdatedAt.AsTime().Format(time.RFC3339),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"seats": seats})
 }
 
 func (h *EventHandler) CreateEvent(c *gin.Context) {

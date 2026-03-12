@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Check, ChevronRight, X, Armchair, Loader2 } from "lucide-react";
 import { useBooking } from "@/lib/booking-context";
 import { VenueMap } from "@/components/venue-map";
 import SectionPicker from "@/components/section-picker";
-import type { Seat, SeatRow, VenueSection, SelectedSeat } from "@/lib/types";
+import { apiClient } from "@/lib/api/client";
+import { transformSeats, generateVenueLayoutFromSeats } from "@/lib/api/transformers";
+import type { Seat, SeatRow, VenueSection, SelectedSeat, VenueLayout, Event } from "@/lib/types";
 
 export default function SeatsPage() {
   const params = useParams();
@@ -18,8 +20,56 @@ export default function SeatsPage() {
 
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [selectedSeats, setSelectedSeats] = useState<SelectedSeat[]>([]);
+  const [venueLayout, setVenueLayout] = useState<VenueLayout | null>(null);
+  const [isLoadingSeats, setIsLoadingSeats] = useState(true);
 
-  const venueLayout = event?.venueLayout;
+  // Fetch seats for this event
+  useEffect(() => {
+    async function fetchSeats() {
+      if (!event) return;
+
+      try {
+        setIsLoadingSeats(true);
+        const seatsData = await apiClient.getSeats({ event_id: eventId });
+        console.log("Fetched seats count:", seatsData.seats?.length || 0);
+
+        if (!seatsData.seats || seatsData.seats.length === 0) {
+          console.warn("No seats returned from API, falling back to mock layout");
+          setVenueLayout(event.venueLayout || null);
+          return;
+        }
+
+        const transformedSeats = transformSeats(seatsData.seats);
+
+        // Generate venue layout from actual seat data
+        const layout = generateVenueLayoutFromSeats(
+          seatsData.seats,
+          event.tiers.map(t => ({
+            id: t.id,
+            event_id: eventId,
+            name: t.name,
+            price_cents: Math.round(t.price * 100),
+            total_quantity: t.available, // Use available as total for display
+            available_quantity: t.available,
+            version: 0,
+          })),
+          event.category.toLowerCase()
+        );
+
+        console.log("Generated layout with sections:", layout.sections.map(s => ({ id: s.id, name: s.name, seats: s.totalSeats })));
+        setVenueLayout(layout);
+      } catch (error) {
+        console.error("Failed to fetch seats:", error);
+        // Fallback to event's venue layout
+        setVenueLayout(event.venueLayout || null);
+      } finally {
+        setIsLoadingSeats(false);
+      }
+    }
+
+    fetchSeats();
+  }, [event, eventId]);
+
   const selectedSection = venueLayout?.sections.find((s) => s.id === selectedSectionId);
 
   const totalPrice = useMemo(
@@ -40,7 +90,7 @@ export default function SeatsPage() {
     return Array.from(seen.values());
   }, [venueLayout]);
 
-  if (isLoading) {
+  if (isLoading || isLoadingSeats) {
     return (
       <div className="flex items-center justify-center h-96">
         <Loader2 size={32} className="animate-spin text-primary" />
@@ -57,22 +107,38 @@ export default function SeatsPage() {
   }
 
   function handleSeatToggle(seat: Seat, row: SeatRow, section: VenueSection) {
+    console.log("[seats page] Seat clicked:", {
+      seatId: seat.id,
+      seatLabel: seat.label,
+      sectionId: section.id,
+      sectionName: section.name,
+      tierId: section.tier,
+    });
     setSelectedSeats((prev) => {
       const exists = prev.find((s) => s.seatId === seat.id);
       if (exists) {
         return prev.filter((s) => s.seatId !== seat.id);
       }
       if (seat.status !== "available") return prev;
+
+      // Find the tier ID by matching section tier name with event tiers
+      const tier = event?.tiers.find(t => t.name === section.tier);
+      const tierId = tier?.id || "";
+
+      const newSeat = {
+        sectionId: section.id,
+        sectionName: section.name,
+        rowLabel: row.label,
+        seatLabel: seat.label,
+        seatId: seat.id,
+        price: section.price,
+        tierId: tierId,
+      };
+      console.log("[seats page] Adding to cart:", newSeat);
+
       return [
         ...prev,
-        {
-          sectionId: section.id,
-          sectionName: section.name,
-          rowLabel: row.label,
-          seatLabel: seat.label,
-          seatId: seat.id,
-          price: section.price,
-        },
+        newSeat,
       ];
     });
   }

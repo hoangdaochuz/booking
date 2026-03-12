@@ -42,10 +42,13 @@ func main() {
 
 	eventRepo := repository.NewPostgresEventRepository(pool)
 	tierRepo := repository.NewPostgresTicketTierRepository(pool)
-	eventService := service.NewEventService(eventRepo, tierRepo, logger)
+	seatRepo := repository.NewPostgresSeatRepository(pool)
+	eventService := service.NewEventService(eventRepo, tierRepo, seatRepo, logger)
 
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(middleware.UnaryLoggingInterceptor(logger)),
+		grpc.MaxRecvMsgSize(16*1024*1024), // 16MB
+		grpc.MaxSendMsgSize(16*1024*1024), // 16MB
 	)
 	eventServer := eventgrpc.NewEventServer(eventService, logger)
 	eventv1.RegisterEventServiceServer(grpcServer, eventServer)

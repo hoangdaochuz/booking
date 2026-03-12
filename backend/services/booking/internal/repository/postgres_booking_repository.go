@@ -35,9 +35,9 @@ func (r *PostgresBookingRepository) Create(ctx context.Context, booking *domain.
 	}
 
 	for _, item := range booking.Items {
-		itemQuery := `INSERT INTO booking_items (id, booking_id, ticket_tier_id, quantity, unit_price_cents)
-                      VALUES ($1, $2, $3, $4, $5)`
-		_, err = tx.Exec(ctx, itemQuery, item.ID, booking.ID, item.TicketTierID, item.Quantity, item.UnitPriceCents)
+		itemQuery := `INSERT INTO booking_items (id, booking_id, ticket_tier_id, quantity, unit_price_cents, seat_ids)
+                      VALUES ($1, $2, $3, $4, $5, $6)`
+		_, err = tx.Exec(ctx, itemQuery, item.ID, booking.ID, item.TicketTierID, item.Quantity, item.UnitPriceCents, item.SeatIDs)
 		if err != nil {
 			return fmt.Errorf("insert booking item: %w", err)
 		}
@@ -60,7 +60,7 @@ func (r *PostgresBookingRepository) GetByID(ctx context.Context, id uuid.UUID) (
 	}
 	b.Status = domain.BookingStatus(status)
 
-	itemQuery := `SELECT id, booking_id, ticket_tier_id, quantity, unit_price_cents FROM booking_items WHERE booking_id = $1`
+	itemQuery := `SELECT id, booking_id, ticket_tier_id, quantity, unit_price_cents, seat_ids FROM booking_items WHERE booking_id = $1`
 	rows, err := r.pool.Query(ctx, itemQuery, id)
 	if err != nil {
 		return nil, fmt.Errorf("get items: %w", err)
@@ -69,7 +69,7 @@ func (r *PostgresBookingRepository) GetByID(ctx context.Context, id uuid.UUID) (
 
 	for rows.Next() {
 		var item domain.BookingItem
-		if err := rows.Scan(&item.ID, &item.BookingID, &item.TicketTierID, &item.Quantity, &item.UnitPriceCents); err != nil {
+		if err := rows.Scan(&item.ID, &item.BookingID, &item.TicketTierID, &item.Quantity, &item.UnitPriceCents, &item.SeatIDs); err != nil {
 			return nil, fmt.Errorf("scan item: %w", err)
 		}
 		b.Items = append(b.Items, item)
@@ -110,14 +110,14 @@ func (r *PostgresBookingRepository) ListByUserID(ctx context.Context, userID uui
 		}
 		b.Status = domain.BookingStatus(status)
 
-		itemQuery := `SELECT id, booking_id, ticket_tier_id, quantity, unit_price_cents FROM booking_items WHERE booking_id = $1`
+		itemQuery := `SELECT id, booking_id, ticket_tier_id, quantity, unit_price_cents, seat_ids FROM booking_items WHERE booking_id = $1`
 		itemRows, err := r.pool.Query(ctx, itemQuery, b.ID)
 		if err != nil {
 			return nil, 0, err
 		}
 		for itemRows.Next() {
 			var item domain.BookingItem
-			if err := itemRows.Scan(&item.ID, &item.BookingID, &item.TicketTierID, &item.Quantity, &item.UnitPriceCents); err != nil {
+			if err := itemRows.Scan(&item.ID, &item.BookingID, &item.TicketTierID, &item.Quantity, &item.UnitPriceCents, &item.SeatIDs); err != nil {
 				itemRows.Close()
 				return nil, 0, err
 			}

@@ -13,14 +13,14 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 
+	bookinggrpc "github.com/ticketbox/booking/internal/grpc"
+	"github.com/ticketbox/booking/internal/repository"
+	"github.com/ticketbox/booking/internal/service"
 	"github.com/ticketbox/pkg/config"
 	"github.com/ticketbox/pkg/database"
 	"github.com/ticketbox/pkg/middleware"
 	bookingv1 "github.com/ticketbox/pkg/proto/booking/v1"
 	eventv1 "github.com/ticketbox/pkg/proto/event/v1"
-	bookinggrpc "github.com/ticketbox/booking/internal/grpc"
-	"github.com/ticketbox/booking/internal/repository"
-	"github.com/ticketbox/booking/internal/service"
 )
 
 func main() {

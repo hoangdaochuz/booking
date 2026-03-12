@@ -9,6 +9,11 @@ proto:
 			--go-grpc_out=. --go-grpc_opt=paths=source_relative \
 			$$dir/*.proto; \
 	done
+	@echo "Copying generated files to pkg/proto/..."
+	@for service in booking event user; do \
+		mkdir -p pkg/proto/$$service/v1; \
+		cp proto/$$service/v1/*.pb.go pkg/proto/$$service/v1/ 2>/dev/null || true; \
+	done
 
 build:
 	@for svc in $(SERVICES); do \

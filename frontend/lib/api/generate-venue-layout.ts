@@ -104,7 +104,7 @@ function concertLayout(tiers: ApiTicketTier[]): VenueLayout {
 
     for (let j = 0; j < sectionCount; j++) {
       const t = layout.templates[j];
-      const sectionId = `${tier.id}-${t.suffix}`;
+      const sectionId = `${tier.id}:${t.suffix}`;
       sections.push({
         id: sectionId,
         name: `${tier.name} ${sectionCount > 1 ? t.suffix.replace("back-", "").replace(/^\w/, c => c.toUpperCase()) : ""}`.trim(),
@@ -156,11 +156,18 @@ function sportsLayout(tiers: ApiTicketTier[], category: string): VenueLayout {
         { suffix: "lower-east", path: "M 550,160 L 660,120 L 660,480 L 550,440 Z", label: { x: 605, y: 300 } },
       ],
     },
-    // Tier 2 (cheapest) — upper deck
+    // Tier 2 — upper deck
     {
       templates: [
         { suffix: "upper-north", path: "M 160,30 L 640,30 L 580,85 L 220,85 Z", label: { x: 400, y: 60 } },
         { suffix: "upper-south", path: "M 220,515 L 580,515 L 640,570 L 160,570 Z", label: { x: 400, y: 545 } },
+      ],
+    },
+    // Tier 3 (cheapest fallback) — general admission
+    {
+      templates: [
+        { suffix: "section-3", path: "M 60,30 L 140,30 L 140,570 L 60,570 Z", label: { x: 100, y: 300 } },
+        { suffix: "section-4", path: "M 660,30 L 740,30 L 740,570 L 660,570 Z", label: { x: 700, y: 300 } },
       ],
     },
   ];
@@ -175,7 +182,7 @@ function sportsLayout(tiers: ApiTicketTier[], category: string): VenueLayout {
 
     for (let j = 0; j < sectionCount; j++) {
       const t = layout.templates[j];
-      const sectionId = `${tier.id}-${t.suffix}`;
+      const sectionId = `${tier.id}:${t.suffix}`;
       const suffixLabel = t.suffix
         .split("-")
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))

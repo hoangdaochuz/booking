@@ -1,4 +1,4 @@
-import { ApiAuthResponse, ApiEvent, ApiListEventsResponse, ApiBooking, ApiListBookingsResponse, ApiUser } from "./types";
+import { ApiAuthResponse, ApiEvent, ApiListEventsResponse, ApiBooking, ApiListBookingsResponse, ApiUser, ApiSeat, ApiGetSeatsParams, ApiUpdateSeatStatusParams } from "./types";
 
 class ApiClient {
   private baseUrl: string;
@@ -132,7 +132,7 @@ class ApiClient {
   }
 
   // ── Bookings ──────────────────────────────────────────
-  async createBooking(eventId: string, items: { ticket_tier_id: string; quantity: number }[]): Promise<ApiBooking> {
+  async createBooking(eventId: string, items: { ticket_tier_id: string; quantity: number; seat_ids: string[] }[]): Promise<ApiBooking> {
     return this.request<ApiBooking>("/bookings", {
       method: "POST",
       body: JSON.stringify({ event_id: eventId, items }),
@@ -153,6 +153,31 @@ class ApiClient {
 
   async cancelBooking(id: string): Promise<ApiBooking> {
     return this.request<ApiBooking>(`/bookings/${id}/cancel`, { method: "POST" });
+  }
+
+  // ── Seats ───────────────────────────────────────────────
+  async getSeats(params: ApiGetSeatsParams): Promise<{ seats: ApiSeat[] }> {
+    const query = new URLSearchParams();
+    query.set("event_id", params.event_id);
+    if (params.ticket_tier_id) {
+      query.set("ticket_tier_id", params.ticket_tier_id);
+    }
+    const qs = query.toString();
+    return this.request<{ seats: ApiSeat[] }>(`/seats${qs ? `?${qs}` : ""}`);
+  }
+
+  async updateSeatStatus(params: ApiUpdateSeatStatusParams): Promise<ApiSeat> {
+    const body: Record<string, string> = {
+      seat_id: params.seat_id,
+      status: params.status,
+    };
+    if (params.booking_id) {
+      body.booking_id = params.booking_id;
+    }
+    return this.request<ApiSeat>("/seats/status", {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
   }
 
   // ── Token state check ─────────────────────────────────

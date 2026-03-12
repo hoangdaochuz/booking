@@ -33,4 +33,5 @@ type BookingItem struct {
 	TierName       string
 	Quantity       int32
 	UnitPriceCents int64
+	SeatIDs        []uuid.UUID // Selected seat IDs for this booking item
 }

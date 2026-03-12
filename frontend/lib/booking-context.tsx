@@ -63,20 +63,21 @@ export function BookingProvider({ children }: { children: React.ReactNode }) {
       const event = events.find((e) => e.id === cart.eventId);
       if (!event) return false;
 
+      // Clear previous error
+      setError(null);
+
       try {
-        // Group seats by tier/section to create booking items
-        const itemMap = new Map<string, { ticket_tier_id: string; quantity: number }>();
+        // Group seats by tier ID using the tierId from cart seats
+        console.log("[booking] Creating booking with seats:", cart.seats.map(s => ({ id: s.seatId, tierId: s.tierId })));
+        const itemMap = new Map<string, { ticket_tier_id: string; quantity: number; seat_ids: string[] }>();
         for (const seat of cart.seats) {
-          // Find the section in venue layout to get the tier, then match with event.tiers
-          const section = event.venueLayout?.sections.find((s) => s.name === seat.sectionName);
-          const tier = section ? event.tiers.find((t) => t.name === section.tier) : null;
-          if (tier) {
-            const existing = itemMap.get(tier.id);
-            if (existing) {
-              existing.quantity += 1;
-            } else {
-              itemMap.set(tier.id, { ticket_tier_id: tier.id, quantity: 1 });
-            }
+          if (!seat.tierId) continue; // Skip if tierId is missing
+          const existing = itemMap.get(seat.tierId);
+          if (existing) {
+            existing.quantity += 1;
+            existing.seat_ids.push(seat.seatId);
+          } else {
+            itemMap.set(seat.tierId, { ticket_tier_id: seat.tierId, quantity: 1, seat_ids: [seat.seatId] });
           }
         }
 
@@ -101,7 +102,18 @@ export function BookingProvider({ children }: { children: React.ReactNode }) {
         fetchEvents();
         return true;
       } catch (err) {
+        // Enhanced error logging with details
         console.error("Booking failed:", err);
+        if (err instanceof Error) {
+          console.error("Error message:", err.message);
+          console.error("Error stack:", err.stack);
+        }
+        // Try to extract API error details
+        if (err && typeof err === "object" && "response" in err) {
+          const response = (err as any).response;
+          console.error("API Error:", response?.data || response?.statusText);
+        }
+        setError(err instanceof Error ? err.message : "Booking failed");
         return false;
       }
     },

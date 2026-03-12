@@ -48,6 +48,11 @@ func (s *BookingService) CreateBooking(ctx context.Context, userID, eventID uuid
 		items[i].ID = uuid.New()
 		items[i].BookingID = booking.ID
 
+		// Validate that seat IDs count matches quantity
+		if len(item.SeatIDs) != int(item.Quantity) {
+			return nil, fmt.Errorf("seat IDs count (%d) must match quantity (%d)", len(item.SeatIDs), item.Quantity)
+		}
+
 		tier, err := s.eventClient.GetTicketAvailability(ctx, &eventv1.GetTicketAvailabilityRequest{
 			TierId: item.TicketTierID.String(),
 		})
@@ -112,6 +117,23 @@ func (s *BookingService) CreateBooking(ctx context.Context, userID, eventID uuid
 
 	if err := s.bookingRepo.Create(ctx, booking); err != nil {
 		return nil, fmt.Errorf("save booking: %w", err)
+	}
+
+	// Update seat statuses to 'booked' for all selected seats
+	for _, item := range items {
+		for _, seatID := range item.SeatIDs {
+			_, err := s.eventClient.UpdateSeatStatus(ctx, &eventv1.UpdateSeatStatusRequest{
+				SeatId:    seatID.String(),
+				Status:    "booked",
+				BookingId: booking.ID.String(),
+			})
+			if err != nil {
+				s.logger.Error("Failed to update seat status",
+					zap.String("seat_id", seatID.String()),
+					zap.Error(err))
+				// Don't fail the booking if seat update fails - log and continue
+			}
+		}
 	}
 
 	return booking, nil

@@ -9,10 +9,9 @@ import { useAuth } from "@/lib/auth-context";
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cart, getEvent, purchaseTickets } = useBooking();
+  const { cart, getEvent, purchaseTickets, error: bookingError } = useBooking();
   const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState("");
 
   if (!cart) {
     return (
@@ -48,13 +47,10 @@ export default function CheckoutPage() {
 
   async function handlePay() {
     setIsProcessing(true);
-    setError("");
     const success = await purchaseTickets(user!.name, user!.email);
     setIsProcessing(false);
     if (success) {
       router.push("/my-tickets");
-    } else {
-      setError("Purchase failed — tickets may have sold out. Please try again.");
     }
   }
 
@@ -135,8 +131,11 @@ export default function CheckoutPage() {
                 </div>
               </div>
             </div>
-            {error && (
-              <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{error}</div>
+            {bookingError && (
+              <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">
+                <div className="font-medium mb-1">Purchase Failed</div>
+                <div>{bookingError}</div>
+              </div>
             )}
           </div>
         </div>

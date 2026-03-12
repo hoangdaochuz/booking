@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/google/uuid"
@@ -178,4 +179,94 @@ func toTicketTier(t *domain.TicketTier) *eventv1.TicketTier {
 		AvailableQuantity: t.AvailableQuantity,
 		Version:           t.Version,
 	}
+}
+
+func (s *EventServer) GetSeats(ctx context.Context, req *eventv1.GetSeatsRequest) (*eventv1.GetSeatsResponse, error) {
+	eventID, err := uuid.Parse(req.EventId)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid event ID")
+	}
+
+	var tierID *uuid.UUID
+	if req.TicketTierId != "" {
+		id, err := uuid.Parse(req.TicketTierId)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid tier ID")
+		}
+		tierID = &id
+	}
+
+	seats, err := s.service.GetSeats(ctx, eventID, tierID)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "failed to get seats")
+	}
+
+	var protoSeats []*eventv1.Seat
+	for _, seat := range seats {
+		protoSeats = append(protoSeats, toSeat(seat))
+	}
+
+	return &eventv1.GetSeatsResponse{
+		Seats: protoSeats,
+	}, nil
+}
+
+func (s *EventServer) UpdateSeatStatus(ctx context.Context, req *eventv1.UpdateSeatStatusRequest) (*eventv1.UpdateSeatStatusResponse, error) {
+	seatID, err := uuid.Parse(req.SeatId)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid seat ID")
+	}
+
+	// Validate status
+	seatStatus := domain.SeatStatus(req.Status)
+	if seatStatus != domain.SeatStatusAvailable && seatStatus != domain.SeatStatusReserved && seatStatus != domain.SeatStatusBooked {
+		return nil, status.Error(codes.InvalidArgument, "invalid status")
+	}
+
+	var bookingID *uuid.UUID
+	if req.BookingId != "" {
+		id, err := uuid.Parse(req.BookingId)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid booking ID")
+		}
+		bookingID = &id
+	}
+
+	seat, err := s.service.UpdateSeatStatus(ctx, seatID, seatStatus, bookingID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, status.Error(codes.NotFound, "seat not found")
+		}
+		if errors.Is(err, repository.ErrSeatNotAvailable) {
+			return nil, status.Error(codes.FailedPrecondition, "seat not available")
+		}
+		return nil, status.Error(codes.Internal, "failed to update seat status")
+	}
+
+	return &eventv1.UpdateSeatStatusResponse{
+		Seat: toSeat(seat),
+	}, nil
+}
+
+func toSeat(s *domain.Seat) *eventv1.Seat {
+	positionJSON, _ := json.Marshal(s.Position)
+
+	seat := &eventv1.Seat{
+		Id:           s.ID.String(),
+		EventId:      s.EventID.String(),
+		TicketTierId: s.TicketTierID.String(),
+		Status:       string(s.Status),
+		Position:     string(positionJSON),
+		CreatedAt:    timestamppb.New(s.CreatedAt),
+		UpdatedAt:    timestamppb.New(s.UpdatedAt),
+	}
+
+	if s.BookingID != nil {
+		seat.BookingId = s.BookingID.String()
+	}
+	if s.OrderID != nil {
+		seat.OrderId = s.OrderID.String()
+	}
+
+	return seat
 }

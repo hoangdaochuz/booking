@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v6.33.1
-// source: event/v1/event.proto
+// source: proto/event/v1/event.proto
 
 package eventv1
 
@@ -26,6 +26,8 @@ const (
 	EventService_DeleteEvent_FullMethodName              = "/event.v1.EventService/DeleteEvent"
 	EventService_GetTicketAvailability_FullMethodName    = "/event.v1.EventService/GetTicketAvailability"
 	EventService_UpdateTicketAvailability_FullMethodName = "/event.v1.EventService/UpdateTicketAvailability"
+	EventService_GetSeats_FullMethodName                 = "/event.v1.EventService/GetSeats"
+	EventService_UpdateSeatStatus_FullMethodName         = "/event.v1.EventService/UpdateSeatStatus"
 )
 
 // EventServiceClient is the client API for EventService service.
@@ -39,6 +41,8 @@ type EventServiceClient interface {
 	DeleteEvent(ctx context.Context, in *DeleteEventRequest, opts ...grpc.CallOption) (*DeleteEventResponse, error)
 	GetTicketAvailability(ctx context.Context, in *GetTicketAvailabilityRequest, opts ...grpc.CallOption) (*TicketAvailabilityResponse, error)
 	UpdateTicketAvailability(ctx context.Context, in *UpdateTicketAvailabilityRequest, opts ...grpc.CallOption) (*TicketTier, error)
+	GetSeats(ctx context.Context, in *GetSeatsRequest, opts ...grpc.CallOption) (*GetSeatsResponse, error)
+	UpdateSeatStatus(ctx context.Context, in *UpdateSeatStatusRequest, opts ...grpc.CallOption) (*UpdateSeatStatusResponse, error)
 }
 
 type eventServiceClient struct {
@@ -119,6 +123,26 @@ func (c *eventServiceClient) UpdateTicketAvailability(ctx context.Context, in *U
 	return out, nil
 }
 
+func (c *eventServiceClient) GetSeats(ctx context.Context, in *GetSeatsRequest, opts ...grpc.CallOption) (*GetSeatsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetSeatsResponse)
+	err := c.cc.Invoke(ctx, EventService_GetSeats_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *eventServiceClient) UpdateSeatStatus(ctx context.Context, in *UpdateSeatStatusRequest, opts ...grpc.CallOption) (*UpdateSeatStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateSeatStatusResponse)
+	err := c.cc.Invoke(ctx, EventService_UpdateSeatStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // EventServiceServer is the server API for EventService service.
 // All implementations must embed UnimplementedEventServiceServer
 // for forward compatibility.
@@ -130,6 +154,8 @@ type EventServiceServer interface {
 	DeleteEvent(context.Context, *DeleteEventRequest) (*DeleteEventResponse, error)
 	GetTicketAvailability(context.Context, *GetTicketAvailabilityRequest) (*TicketAvailabilityResponse, error)
 	UpdateTicketAvailability(context.Context, *UpdateTicketAvailabilityRequest) (*TicketTier, error)
+	GetSeats(context.Context, *GetSeatsRequest) (*GetSeatsResponse, error)
+	UpdateSeatStatus(context.Context, *UpdateSeatStatusRequest) (*UpdateSeatStatusResponse, error)
 	mustEmbedUnimplementedEventServiceServer()
 }
 
@@ -160,6 +186,12 @@ func (UnimplementedEventServiceServer) GetTicketAvailability(context.Context, *G
 }
 func (UnimplementedEventServiceServer) UpdateTicketAvailability(context.Context, *UpdateTicketAvailabilityRequest) (*TicketTier, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateTicketAvailability not implemented")
+}
+func (UnimplementedEventServiceServer) GetSeats(context.Context, *GetSeatsRequest) (*GetSeatsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetSeats not implemented")
+}
+func (UnimplementedEventServiceServer) UpdateSeatStatus(context.Context, *UpdateSeatStatusRequest) (*UpdateSeatStatusResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateSeatStatus not implemented")
 }
 func (UnimplementedEventServiceServer) mustEmbedUnimplementedEventServiceServer() {}
 func (UnimplementedEventServiceServer) testEmbeddedByValue()                      {}
@@ -308,6 +340,42 @@ func _EventService_UpdateTicketAvailability_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _EventService_GetSeats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSeatsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).GetSeats(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_GetSeats_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).GetSeats(ctx, req.(*GetSeatsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EventService_UpdateSeatStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateSeatStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).UpdateSeatStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_UpdateSeatStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).UpdateSeatStatus(ctx, req.(*UpdateSeatStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // EventService_ServiceDesc is the grpc.ServiceDesc for EventService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -343,7 +411,15 @@ var EventService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "UpdateTicketAvailability",
 			Handler:    _EventService_UpdateTicketAvailability_Handler,
 		},
+		{
+			MethodName: "GetSeats",
+			Handler:    _EventService_GetSeats_Handler,
+		},
+		{
+			MethodName: "UpdateSeatStatus",
+			Handler:    _EventService_UpdateSeatStatus_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "event/v1/event.proto",
+	Metadata: "proto/event/v1/event.proto",
 }

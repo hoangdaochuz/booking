@@ -42,9 +42,20 @@ func (s *BookingServer) CreateBooking(ctx context.Context, req *bookingv1.Create
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, "invalid tier ID")
 		}
+
+		var seatIDs []uuid.UUID
+		for _, seatID := range item.SeatIds {
+			id, err := uuid.Parse(seatID)
+			if err != nil {
+				return nil, status.Error(codes.InvalidArgument, "invalid seat ID")
+			}
+			seatIDs = append(seatIDs, id)
+		}
+
 		items = append(items, domain.BookingItem{
 			TicketTierID: tierID,
 			Quantity:     item.Quantity,
+			SeatIDs:      seatIDs,
 		})
 	}
 
@@ -132,12 +143,17 @@ func toBookingDetail(b *domain.Booking) *bookingv1.BookingDetail {
 		CreatedAt:        timestamppb.New(b.CreatedAt),
 	}
 	for _, item := range b.Items {
+		var seatIDs []string
+		for _, id := range item.SeatIDs {
+			seatIDs = append(seatIDs, id.String())
+		}
 		detail.Items = append(detail.Items, &bookingv1.BookingItem{
 			Id:             item.ID.String(),
 			TicketTierId:   item.TicketTierID.String(),
 			TierName:       item.TierName,
 			Quantity:       item.Quantity,
 			UnitPriceCents: item.UnitPriceCents,
+			SeatIds:        seatIDs,
 		})
 	}
 	return detail

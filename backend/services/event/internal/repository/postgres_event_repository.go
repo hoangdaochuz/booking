@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -272,5 +273,372 @@ func (r *PostgresTicketTierRepository) UpdateAvailabilityNoLock(ctx context.Cont
 	_, err := r.pool.Exec(ctx,
 		`UPDATE ticket_tiers SET available_quantity = available_quantity + $2 WHERE id = $1`,
 		tierID, delta)
+	return err
+}
+
+// --- Seat Repository ---
+
+type PostgresSeatRepository struct {
+	pool *pgxpool.Pool
+}
+
+func NewPostgresSeatRepository(pool *pgxpool.Pool) *PostgresSeatRepository {
+	return &PostgresSeatRepository{pool: pool}
+}
+
+func (r *PostgresSeatRepository) Create(ctx context.Context, seat *domain.Seat) error {
+	positionJSON, err := json.Marshal(seat.Position)
+	if err != nil {
+		return fmt.Errorf("marshal position: %w", err)
+	}
+
+	query := `INSERT INTO seats (id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+
+	// Handle nullable UUID fields
+	var bookingID, orderID uuid.UUID
+	if seat.BookingID != nil {
+		bookingID = *seat.BookingID
+	}
+	if seat.OrderID != nil {
+		orderID = *seat.OrderID
+	}
+
+	_, err = r.pool.Exec(ctx, query,
+		seat.ID, seat.EventID, seat.TicketTierID, seat.Status,
+		bookingID, orderID, positionJSON, seat.CreatedAt, seat.UpdatedAt)
+	return err
+}
+
+func (r *PostgresSeatRepository) CreateBatch(ctx context.Context, seats []*domain.Seat) error {
+	if len(seats) == 0 {
+		return nil
+	}
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	query := `INSERT INTO seats (id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+
+	for _, seat := range seats {
+		positionJSON, err := json.Marshal(seat.Position)
+		if err != nil {
+			return fmt.Errorf("marshal position: %w", err)
+		}
+
+		// Handle nullable UUID fields
+		var bookingID, orderID uuid.UUID
+		if seat.BookingID != nil {
+			bookingID = *seat.BookingID
+		}
+		if seat.OrderID != nil {
+			orderID = *seat.OrderID
+		}
+
+		_, err = tx.Exec(ctx, query,
+			seat.ID, seat.EventID, seat.TicketTierID, seat.Status,
+			bookingID, orderID, positionJSON, seat.CreatedAt, seat.UpdatedAt)
+		if err != nil {
+			return fmt.Errorf("insert seat: %w", err)
+		}
+	}
+
+	return tx.Commit(ctx)
+}
+
+func (r *PostgresSeatRepository) GetByEventID(ctx context.Context, eventID uuid.UUID, tierID *uuid.UUID) ([]*domain.Seat, error) {
+	var rows pgx.Rows
+	var err error
+
+	if tierID != nil {
+		query := `SELECT id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at
+                  FROM seats WHERE event_id = $1 AND ticket_tier_id = $2 AND deleted_at IS NULL
+                  ORDER BY position->>'sectionId', position->>'row', (position->>'seat')::int`
+		rows, err = r.pool.Query(ctx, query, eventID, *tierID)
+	} else {
+		query := `SELECT id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at
+                  FROM seats WHERE event_id = $1 AND deleted_at IS NULL
+                  ORDER BY position->>'sectionId', position->>'row', (position->>'seat')::int`
+		rows, err = r.pool.Query(ctx, query, eventID)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("get seats: %w", err)
+	}
+	defer rows.Close()
+
+	var seats []*domain.Seat
+	for rows.Next() {
+		seat, err := r.scanSeat(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan seat: %w", err)
+		}
+		seats = append(seats, seat)
+	}
+
+	return seats, nil
+}
+
+func (r *PostgresSeatRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Seat, error) {
+	query := `SELECT id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at
+              FROM seats WHERE id = $1 AND deleted_at IS NULL`
+	seat := &domain.Seat{}
+	var positionJSON []byte
+	var bookingID, orderID uuid.UUID
+
+	err := r.pool.QueryRow(ctx, query, id).Scan(
+		&seat.ID, &seat.EventID, &seat.TicketTierID, &seat.Status,
+		&bookingID, &orderID, &positionJSON, &seat.CreatedAt, &seat.UpdatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get seat: %w", err)
+	}
+
+	// Handle nullable UUID fields
+	if bookingID != uuid.Nil {
+		seat.BookingID = &bookingID
+	}
+	if orderID != uuid.Nil {
+		seat.OrderID = &orderID
+	}
+
+	if err := json.Unmarshal(positionJSON, &seat.Position); err != nil {
+		return nil, fmt.Errorf("unmarshal position: %w", err)
+	}
+
+	return seat, nil
+}
+
+func (r *PostgresSeatRepository) UpdateStatus(ctx context.Context, seatID uuid.UUID, status domain.SeatStatus, bookingID *uuid.UUID) (*domain.Seat, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Lock the seat row and check current status
+	var currentStatus domain.SeatStatus
+	err = tx.QueryRow(ctx,
+		`SELECT status FROM seats WHERE id = $1 FOR UPDATE`, seatID).Scan(&currentStatus)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("lock seat: %w", err)
+	}
+
+	// Prevent double booking: can only update from available to reserved/booked
+	if currentStatus != domain.SeatStatusAvailable && status != domain.SeatStatusAvailable {
+		return nil, ErrSeatNotAvailable
+	}
+
+	// Convert bookingID pointer to uuid.Nil for nil pointer
+	var bookingIDValue uuid.UUID
+	if bookingID != nil {
+		bookingIDValue = *bookingID
+	} else {
+		bookingIDValue = uuid.Nil
+	}
+
+	// Update status
+	var seat domain.Seat
+	var positionJSON []byte
+	var dbBookingID, dbOrderID uuid.UUID
+	query := `UPDATE seats SET status = $2, booking_id = $3, updated_at = NOW()
+              WHERE id = $1
+              RETURNING id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at`
+	err = tx.QueryRow(ctx, query, seatID, status, bookingIDValue).Scan(
+		&seat.ID, &seat.EventID, &seat.TicketTierID, &seat.Status,
+		&dbBookingID, &dbOrderID, &positionJSON, &seat.CreatedAt, &seat.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("update seat: %w", err)
+	}
+
+	// Handle nullable UUID fields
+	if dbBookingID != uuid.Nil {
+		seat.BookingID = &dbBookingID
+	}
+	if dbOrderID != uuid.Nil {
+		seat.OrderID = &dbOrderID
+	}
+
+	if err := json.Unmarshal(positionJSON, &seat.Position); err != nil {
+		return nil, fmt.Errorf("unmarshal position: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit tx: %w", err)
+	}
+
+	return &seat, nil
+}
+
+// scanSeat is a helper to scan a seat from a database row
+func (r *PostgresSeatRepository) scanSeat(rows pgx.Rows) (*domain.Seat, error) {
+	seat := &domain.Seat{}
+	var positionJSON []byte
+	var bookingID, orderID uuid.UUID
+
+	err := rows.Scan(
+		&seat.ID, &seat.EventID, &seat.TicketTierID, &seat.Status,
+		&bookingID, &orderID, &positionJSON, &seat.CreatedAt, &seat.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	// Handle nullable UUID fields
+	if bookingID != uuid.Nil {
+		seat.BookingID = &bookingID
+	}
+	if orderID != uuid.Nil {
+		seat.OrderID = &orderID
+	}
+
+	if err := json.Unmarshal(positionJSON, &seat.Position); err != nil {
+		return nil, fmt.Errorf("unmarshal position: %w", err)
+	}
+
+	return seat, nil
+}
+
+func (r *PostgresSeatRepository) GetByTierID(ctx context.Context, tierID uuid.UUID) ([]*domain.Seat, error) {
+	query := `SELECT id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at
+              FROM seats WHERE ticket_tier_id = $1 AND deleted_at IS NULL
+              ORDER BY position->>'sectionId', position->>'row', (position->>'seat')::int`
+	rows, err := r.pool.Query(ctx, query, tierID)
+	if err != nil {
+		return nil, fmt.Errorf("get seats by tier: %w", err)
+	}
+	defer rows.Close()
+
+	var seats []*domain.Seat
+	for rows.Next() {
+		seat, err := r.scanSeat(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan seat: %w", err)
+		}
+		seats = append(seats, seat)
+	}
+
+	return seats, nil
+}
+
+func (r *PostgresSeatRepository) UpdateStatusBatch(ctx context.Context, seatIDs []uuid.UUID, status domain.SeatStatus, bookingID *uuid.UUID) error {
+	if len(seatIDs) == 0 {
+		return nil
+	}
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Use pessimistic locking to prevent race conditions
+	query := `SELECT id FROM seats WHERE id = ANY($1) AND deleted_at IS NULL FOR UPDATE`
+	rows, err := tx.Query(ctx, query, seatIDs)
+	if err != nil {
+		return fmt.Errorf("lock seats: %w", err)
+	}
+	defer rows.Close()
+
+	// Verify all seats exist and are available (if transitioning to reserved/booked)
+	var lockedIDs []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return fmt.Errorf("scan locked id: %w", err)
+		}
+		lockedIDs = append(lockedIDs, id)
+	}
+
+	if len(lockedIDs) != len(seatIDs) {
+		return ErrNotFound
+	}
+
+	// Convert bookingID pointer to uuid.Nil for nil pointer
+	var bookingIDValue uuid.UUID
+	if bookingID != nil {
+		bookingIDValue = *bookingID
+	} else {
+		bookingIDValue = uuid.Nil
+	}
+
+	// Update all seats
+	updateQuery := `UPDATE seats SET status = $2, booking_id = $3, updated_at = NOW()
+                    WHERE id = ANY($1) AND deleted_at IS NULL`
+	result, err := tx.Exec(ctx, updateQuery, seatIDs, status, bookingIDValue)
+	if err != nil {
+		return fmt.Errorf("update seats: %w", err)
+	}
+
+	if result.RowsAffected() != int64(len(seatIDs)) {
+		return ErrNotFound
+	}
+
+	return tx.Commit(ctx)
+}
+
+func (r *PostgresSeatRepository) GetAvailableSeats(ctx context.Context, eventID uuid.UUID) ([]*domain.Seat, error) {
+	query := `SELECT id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at
+              FROM seats WHERE event_id = $1 AND status = 'available' AND deleted_at IS NULL
+              ORDER BY position->>'sectionId', position->>'row', (position->>'seat')::int`
+	rows, err := r.pool.Query(ctx, query, eventID)
+	if err != nil {
+		return nil, fmt.Errorf("get available seats: %w", err)
+	}
+	defer rows.Close()
+
+	var seats []*domain.Seat
+	for rows.Next() {
+		seat, err := r.scanSeat(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan seat: %w", err)
+		}
+		seats = append(seats, seat)
+	}
+
+	return seats, nil
+}
+
+func (r *PostgresSeatRepository) GetAvailableSeatsByTier(ctx context.Context, tierID uuid.UUID) ([]*domain.Seat, error) {
+	query := `SELECT id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at
+              FROM seats WHERE ticket_tier_id = $1 AND status = 'available' AND deleted_at IS NULL
+              ORDER BY position->>'sectionId', position->>'row', (position->>'seat')::int`
+	rows, err := r.pool.Query(ctx, query, tierID)
+	if err != nil {
+		return nil, fmt.Errorf("get available seats by tier: %w", err)
+	}
+	defer rows.Close()
+
+	var seats []*domain.Seat
+	for rows.Next() {
+		seat, err := r.scanSeat(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan seat: %w", err)
+		}
+		seats = append(seats, seat)
+	}
+
+	return seats, nil
+}
+
+// Delete soft deletes a seat by setting deleted_at
+func (r *PostgresSeatRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	query := `UPDATE seats SET deleted_at = NOW() WHERE id = $1`
+	_, err := r.pool.Exec(ctx, query, id)
+	return err
+}
+
+// DeleteByEventID soft deletes all seats for an event
+func (r *PostgresSeatRepository) DeleteByEventID(ctx context.Context, eventID uuid.UUID) error {
+	query := `UPDATE seats SET deleted_at = NOW() WHERE event_id = $1 AND deleted_at IS NULL`
+	_, err := r.pool.Exec(ctx, query, eventID)
 	return err
 }

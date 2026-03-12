@@ -51,6 +51,7 @@ export interface ApiBookingItem {
   tier_name: string;
   quantity: number;
   unit_price_cents: number;
+  seat_ids: string[];
 }
 
 export interface ApiBooking {
@@ -70,4 +71,36 @@ export interface ApiListBookingsResponse {
 
 export interface ApiError {
   error: string;
+}
+
+// ── Seats ────────────────────────────────────────────────
+export interface ApiSeatPosition {
+  sectionId: string;
+  row: string;
+  seat: number;
+  x: number;
+  y: number;
+}
+
+export interface ApiSeat {
+  id: string;
+  event_id: string;
+  ticket_tier_id: string;
+  status: 'available' | 'reserved' | 'booked';
+  booking_id: string | null;
+  order_id: string;
+  position: ApiSeatPosition;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiGetSeatsParams {
+  event_id: string;
+  ticket_tier_id?: string;
+}
+
+export interface ApiUpdateSeatStatusParams {
+  seat_id: string;
+  status: 'available' | 'reserved' | 'booked';
+  booking_id?: string;
 }

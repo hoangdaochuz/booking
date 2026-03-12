@@ -24,8 +24,9 @@ func (h *BookingHandler) CreateBooking(c *gin.Context) {
 	var req struct {
 		EventID string `json:"event_id" binding:"required"`
 		Items   []struct {
-			TicketTierID string `json:"ticket_tier_id" binding:"required"`
-			Quantity     int32  `json:"quantity" binding:"required"`
+			TicketTierID string   `json:"ticket_tier_id" binding:"required"`
+			Quantity     int32    `json:"quantity" binding:"required"`
+			SeatIDs      []string `json:"seat_ids"`
 		} `json:"items" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -43,6 +44,7 @@ func (h *BookingHandler) CreateBooking(c *gin.Context) {
 		items = append(items, &bookingv1.BookingItemRequest{
 			TicketTierId: item.TicketTierID,
 			Quantity:     item.Quantity,
+			SeatIds:      item.SeatIDs,
 		})
 	}
 
@@ -122,6 +124,7 @@ func toBookingJSON(b *bookingv1.BookingDetail) gin.H {
 			"tier_name":        item.TierName,
 			"quantity":         item.Quantity,
 			"unit_price_cents": item.UnitPriceCents,
+			"seat_ids":         item.SeatIds,
 		})
 	}
 	return gin.H{

@@ -32,19 +32,31 @@ func main() {
 	}
 
 	// Connect to gRPC services
-	userConn, err := grpc.NewClient(cfg.UserServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	userConn, err := grpc.NewClient(cfg.UserServiceAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(16*1024*1024)), // 16MB
+		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(16*1024*1024)), // 16MB
+	)
 	if err != nil {
 		logger.Fatal("Failed to connect to user service", zap.Error(err))
 	}
 	defer userConn.Close()
 
-	eventConn, err := grpc.NewClient(cfg.EventServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	eventConn, err := grpc.NewClient(cfg.EventServiceAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(16*1024*1024)), // 16MB
+		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(16*1024*1024)), // 16MB
+	)
 	if err != nil {
 		logger.Fatal("Failed to connect to event service", zap.Error(err))
 	}
 	defer eventConn.Close()
 
-	bookingConn, err := grpc.NewClient(cfg.BookingServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	bookingConn, err := grpc.NewClient(cfg.BookingServiceAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(16*1024*1024)), // 16MB
+		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(16*1024*1024)), // 16MB
+	)
 	if err != nil {
 		logger.Fatal("Failed to connect to booking service", zap.Error(err))
 	}
