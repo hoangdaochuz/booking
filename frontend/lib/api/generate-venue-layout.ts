@@ -47,7 +47,7 @@ function generateRows(
         id: `${sectionId}-row-${ri}-seat-${si}`,
         label: `${si + 1}`,
         status: takenSet.has(`${ri}-${si}`)
-          ? ("taken" as const)
+          ? ("booked" as const)
           : ("available" as const),
       })),
     };

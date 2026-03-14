@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"slices"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/ticketbox/event/internal/domain"
@@ -219,7 +222,12 @@ func (s *EventServer) UpdateSeatStatus(ctx context.Context, req *eventv1.UpdateS
 
 	// Validate status
 	seatStatus := domain.SeatStatus(req.Status)
-	if seatStatus != domain.SeatStatusAvailable && seatStatus != domain.SeatStatusReserved && seatStatus != domain.SeatStatusBooked {
+	validStatus := []domain.SeatStatus{
+		domain.SeatStatusAvailable,
+		domain.SeatStatusBooked,
+		domain.SeatStatusReserved,
+	}
+	if !slices.Contains(validStatus, seatStatus) {
 		return nil, status.Error(codes.InvalidArgument, "invalid status")
 	}
 
@@ -246,6 +254,51 @@ func (s *EventServer) UpdateSeatStatus(ctx context.Context, req *eventv1.UpdateS
 	return &eventv1.UpdateSeatStatusResponse{
 		Seat: toSeat(seat),
 	}, nil
+}
+
+func (s EventServer) UpdateBatchSeatStatus(ctx context.Context, req *eventv1.UpdateBatchSeatStatusRequest) (*emptypb.Empty, error) {
+	seatIds := []uuid.UUID{}
+	for _, val := range req.SeatIds {
+		seatId, err := uuid.Parse(val)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid seat ID")
+		}
+		seatIds = append(seatIds, seatId)
+	}
+
+	// Validate status
+	seatStatus := domain.SeatStatus(req.Status)
+	fmt.Println("status: ", seatStatus)
+	validStatus := []domain.SeatStatus{
+		domain.SeatStatusAvailable,
+		domain.SeatStatusBooked,
+		domain.SeatStatusReserved,
+	}
+	if !slices.Contains(validStatus, seatStatus) {
+		return nil, status.Error(codes.InvalidArgument, "invalid status")
+	}
+
+	var bookingID *uuid.UUID
+	if req.BookingId != "" {
+		id, err := uuid.Parse(req.BookingId)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid booking ID")
+		}
+		bookingID = &id
+	}
+
+	err := s.service.UpdateBatchSeatStatus(ctx, seatIds, seatStatus, bookingID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, status.Error(codes.NotFound, "seat not found")
+		}
+		if errors.Is(err, repository.ErrSeatNotAvailable) {
+			return nil, status.Error(codes.FailedPrecondition, "seat not available")
+		}
+		return nil, status.Error(codes.Internal, "failed to update seat status "+err.Error())
+	}
+
+	return nil, nil
 }
 
 func toSeat(s *domain.Seat) *eventv1.Seat {

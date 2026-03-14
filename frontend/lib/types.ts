@@ -39,7 +39,7 @@ export interface SeatRow {
 export interface Seat {
   id: string;
   label: string;
-  status: "available" | "taken" | "selected";
+  status: "available" | "reserved" | "booked" | "selected";
 }
 
 export interface SelectedSeat {

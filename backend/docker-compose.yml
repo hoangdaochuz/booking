@@ -114,7 +114,13 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     healthcheck:
-      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      test:
+        [
+          "CMD",
+          "kafka-broker-api-versions",
+          "--bootstrap-server",
+          "localhost:9092",
+        ]
       interval: 10s
       timeout: 10s
       retries: 10
@@ -186,6 +192,7 @@ services:
       KAFKA_BROKERS: kafka:29092
       EVENT_SERVICE_ADDR: event-service:50052
       BOOKING_MODE: ${BOOKING_MODE:-pessimistic}
+      REDIS_URL: redis://redis:6379
     depends_on:
       postgres-booking:
         condition: service_healthy

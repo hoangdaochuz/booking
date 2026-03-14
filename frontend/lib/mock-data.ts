@@ -17,7 +17,7 @@ function generateRows(
       label: `${si + 1}`,
       status:
         Math.random() < takenProbability
-          ? ("taken" as const)
+          ? (Math.random() < 0.5 ? ("booked" as const) : ("reserved" as const))
           : ("available" as const),
     })),
   }));

@@ -277,7 +277,7 @@ export function generateVenueLayoutFromSeats(
         seats: rowSeats.map(seat => ({
           id: seat.id,
           label: `${seat.position.seat}`,
-          status: seat.status === "available" ? "available" : "taken",
+          status: seat.status as "available" | "reserved" | "booked",
         })),
       });
     }
@@ -285,7 +285,8 @@ export function generateVenueLayoutFromSeats(
     // Sort rows alphabetically
     seatRows.sort((a, b) => a.label.localeCompare(b.label));
 
-    const availableCount = seats.filter(s => s.status === "available").length;
+    // Reserved seats are not yet confirmed, so they still count as available
+    const availableCount = seats.filter(s => s.status === "available" || s.status === "reserved").length;
 
     sections.push({
       id: sectionId,

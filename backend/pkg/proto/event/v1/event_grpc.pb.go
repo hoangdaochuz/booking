@@ -11,6 +11,7 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -28,6 +29,7 @@ const (
 	EventService_UpdateTicketAvailability_FullMethodName = "/event.v1.EventService/UpdateTicketAvailability"
 	EventService_GetSeats_FullMethodName                 = "/event.v1.EventService/GetSeats"
 	EventService_UpdateSeatStatus_FullMethodName         = "/event.v1.EventService/UpdateSeatStatus"
+	EventService_UpdateBatchSeatStatus_FullMethodName    = "/event.v1.EventService/UpdateBatchSeatStatus"
 )
 
 // EventServiceClient is the client API for EventService service.
@@ -43,6 +45,7 @@ type EventServiceClient interface {
 	UpdateTicketAvailability(ctx context.Context, in *UpdateTicketAvailabilityRequest, opts ...grpc.CallOption) (*TicketTier, error)
 	GetSeats(ctx context.Context, in *GetSeatsRequest, opts ...grpc.CallOption) (*GetSeatsResponse, error)
 	UpdateSeatStatus(ctx context.Context, in *UpdateSeatStatusRequest, opts ...grpc.CallOption) (*UpdateSeatStatusResponse, error)
+	UpdateBatchSeatStatus(ctx context.Context, in *UpdateBatchSeatStatusRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type eventServiceClient struct {
@@ -143,6 +146,16 @@ func (c *eventServiceClient) UpdateSeatStatus(ctx context.Context, in *UpdateSea
 	return out, nil
 }
 
+func (c *eventServiceClient) UpdateBatchSeatStatus(ctx context.Context, in *UpdateBatchSeatStatusRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, EventService_UpdateBatchSeatStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // EventServiceServer is the server API for EventService service.
 // All implementations must embed UnimplementedEventServiceServer
 // for forward compatibility.
@@ -156,6 +169,7 @@ type EventServiceServer interface {
 	UpdateTicketAvailability(context.Context, *UpdateTicketAvailabilityRequest) (*TicketTier, error)
 	GetSeats(context.Context, *GetSeatsRequest) (*GetSeatsResponse, error)
 	UpdateSeatStatus(context.Context, *UpdateSeatStatusRequest) (*UpdateSeatStatusResponse, error)
+	UpdateBatchSeatStatus(context.Context, *UpdateBatchSeatStatusRequest) (*emptypb.Empty, error)
 	mustEmbedUnimplementedEventServiceServer()
 }
 
@@ -192,6 +206,9 @@ func (UnimplementedEventServiceServer) GetSeats(context.Context, *GetSeatsReques
 }
 func (UnimplementedEventServiceServer) UpdateSeatStatus(context.Context, *UpdateSeatStatusRequest) (*UpdateSeatStatusResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateSeatStatus not implemented")
+}
+func (UnimplementedEventServiceServer) UpdateBatchSeatStatus(context.Context, *UpdateBatchSeatStatusRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateBatchSeatStatus not implemented")
 }
 func (UnimplementedEventServiceServer) mustEmbedUnimplementedEventServiceServer() {}
 func (UnimplementedEventServiceServer) testEmbeddedByValue()                      {}
@@ -376,6 +393,24 @@ func _EventService_UpdateSeatStatus_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _EventService_UpdateBatchSeatStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateBatchSeatStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).UpdateBatchSeatStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_UpdateBatchSeatStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).UpdateBatchSeatStatus(ctx, req.(*UpdateBatchSeatStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // EventService_ServiceDesc is the grpc.ServiceDesc for EventService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -418,6 +453,10 @@ var EventService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateSeatStatus",
 			Handler:    _EventService_UpdateSeatStatus_Handler,
+		},
+		{
+			MethodName: "UpdateBatchSeatStatus",
+			Handler:    _EventService_UpdateBatchSeatStatus_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
