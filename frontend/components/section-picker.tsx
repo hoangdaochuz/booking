@@ -55,7 +55,9 @@ export default function SectionPicker({
             <div className="flex items-center gap-1.5">
               {row.seats.map((seat) => {
                 const selected = isSeatSelected(seat);
-                const taken = seat.status === "taken";
+                const isBooked = seat.status === "booked";
+                const isReserved = seat.status === "reserved";
+                const isDisabled = isBooked;
 
                 let backgroundColor: string;
                 let color: string;
@@ -66,9 +68,14 @@ export default function SectionPicker({
                   backgroundColor = "#FF8400";
                   color = "#FFFFFF";
                   cursor = "pointer";
-                } else if (taken) {
+                } else if (isBooked) {
                   backgroundColor = "#D1D5DB";
                   color = "#9CA3AF";
+                  cursor = "not-allowed";
+                } else if (isReserved) {
+                  backgroundColor = "#FEF3C7";
+                  color = "#D97706";
+                  borderColor = "#F59E0B";
                   cursor = "not-allowed";
                 } else {
                   backgroundColor = `${section.color}4D`; // 30% opacity
@@ -80,9 +87,9 @@ export default function SectionPicker({
                 return (
                   <button
                     key={seat.id}
-                    disabled={taken}
+                    disabled={isDisabled || isReserved}
                     onClick={() => {
-                      if (!taken) {
+                      if (!isDisabled && !isReserved) {
                         onSeatToggle(seat, row, section);
                       }
                     }}
@@ -112,7 +119,8 @@ export default function SectionPicker({
         <SeatLegend
           items={[
             { label: "Available", color: `${section.color}4D`, border: section.color },
-            { label: "Taken", color: "#D1D5DB" },
+            { label: "Reserved", color: "#FEF3C7", border: "#F59E0B" },
+            { label: "Booked", color: "#D1D5DB" },
             { label: "Selected", color: "#FF8400" },
           ]}
         />

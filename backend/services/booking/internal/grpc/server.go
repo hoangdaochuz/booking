@@ -70,7 +70,7 @@ func (s *BookingServer) CreateBooking(ctx context.Context, req *bookingv1.Create
 			return toBookingDetail(booking), nil
 		}
 		s.logger.Error("CreateBooking failed", zap.Error(err))
-		return nil, status.Error(codes.Internal, "booking failed")
+		return nil, status.Error(codes.Internal, "booking failed: "+err.Error())
 	}
 
 	return toBookingDetail(booking), nil

@@ -425,12 +425,12 @@ func (r *PostgresSeatRepository) UpdateStatus(ctx context.Context, seatID uuid.U
 	// Lock the seat row and check current status
 	var currentStatus domain.SeatStatus
 	err = tx.QueryRow(ctx,
-		`SELECT status FROM seats WHERE id = $1 FOR UPDATE`, seatID).Scan(&currentStatus)
+		`SELECT status FROM seats WHERE id = $1`, seatID).Scan(&currentStatus)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
 		}
-		return nil, fmt.Errorf("lock seat: %w", err)
+		return nil, fmt.Errorf("lock seat error: %w", err)
 	}
 
 	// Prevent double booking: can only update from available to reserved/booked
@@ -541,7 +541,7 @@ func (r *PostgresSeatRepository) UpdateStatusBatch(ctx context.Context, seatIDs 
 	defer tx.Rollback(ctx)
 
 	// Use pessimistic locking to prevent race conditions
-	query := `SELECT id FROM seats WHERE id = ANY($1) AND deleted_at IS NULL FOR UPDATE`
+	query := `SELECT id, status FROM seats WHERE id = ANY($1) AND deleted_at IS NULL`
 	rows, err := tx.Query(ctx, query, seatIDs)
 	if err != nil {
 		return fmt.Errorf("lock seats: %w", err)
@@ -550,16 +550,27 @@ func (r *PostgresSeatRepository) UpdateStatusBatch(ctx context.Context, seatIDs 
 
 	// Verify all seats exist and are available (if transitioning to reserved/booked)
 	var lockedIDs []uuid.UUID
+	var currentSeatsStatus []domain.SeatStatus
 	for rows.Next() {
 		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return fmt.Errorf("scan locked id: %w", err)
+		var status domain.SeatStatus
+		if err := rows.Scan(&id, &status); err != nil {
+			return fmt.Errorf("scan locked seats: %w", err)
 		}
 		lockedIDs = append(lockedIDs, id)
+		if len(currentSeatsStatus) > 1 && currentSeatsStatus[len(currentSeatsStatus)-1] != status {
+			return fmt.Errorf("Exist seat has been inconsistent status")
+		}
+		currentSeatsStatus = append(currentSeatsStatus, status)
 	}
 
 	if len(lockedIDs) != len(seatIDs) {
 		return ErrNotFound
+	}
+
+	// Prevent double booking: can only update from available to reserved/booked
+	if currentSeatsStatus[0] != domain.SeatStatusAvailable && status != domain.SeatStatusAvailable {
+		return ErrSeatNotAvailable
 	}
 
 	// Convert bookingID pointer to uuid.Nil for nil pointer

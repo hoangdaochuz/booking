@@ -9,6 +9,7 @@ package eventv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -1203,6 +1204,66 @@ func (x *UpdateSeatStatusRequest) GetBookingId() string {
 	return ""
 }
 
+type UpdateBatchSeatStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SeatIds       []string               `protobuf:"bytes,1,rep,name=seat_ids,json=seatIds,proto3" json:"seat_ids,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	BookingId     string                 `protobuf:"bytes,3,opt,name=booking_id,json=bookingId,proto3" json:"booking_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateBatchSeatStatusRequest) Reset() {
+	*x = UpdateBatchSeatStatusRequest{}
+	mi := &file_proto_event_v1_event_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateBatchSeatStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateBatchSeatStatusRequest) ProtoMessage() {}
+
+func (x *UpdateBatchSeatStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_event_v1_event_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateBatchSeatStatusRequest.ProtoReflect.Descriptor instead.
+func (*UpdateBatchSeatStatusRequest) Descriptor() ([]byte, []int) {
+	return file_proto_event_v1_event_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *UpdateBatchSeatStatusRequest) GetSeatIds() []string {
+	if x != nil {
+		return x.SeatIds
+	}
+	return nil
+}
+
+func (x *UpdateBatchSeatStatusRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *UpdateBatchSeatStatusRequest) GetBookingId() string {
+	if x != nil {
+		return x.BookingId
+	}
+	return ""
+}
+
 type UpdateSeatStatusResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Seat          *Seat                  `protobuf:"bytes,1,opt,name=seat,proto3" json:"seat,omitempty"`
@@ -1212,7 +1273,7 @@ type UpdateSeatStatusResponse struct {
 
 func (x *UpdateSeatStatusResponse) Reset() {
 	*x = UpdateSeatStatusResponse{}
-	mi := &file_proto_event_v1_event_proto_msgTypes[17]
+	mi := &file_proto_event_v1_event_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1224,7 +1285,7 @@ func (x *UpdateSeatStatusResponse) String() string {
 func (*UpdateSeatStatusResponse) ProtoMessage() {}
 
 func (x *UpdateSeatStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_event_v1_event_proto_msgTypes[17]
+	mi := &file_proto_event_v1_event_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1237,7 +1298,7 @@ func (x *UpdateSeatStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSeatStatusResponse.ProtoReflect.Descriptor instead.
 func (*UpdateSeatStatusResponse) Descriptor() ([]byte, []int) {
-	return file_proto_event_v1_event_proto_rawDescGZIP(), []int{17}
+	return file_proto_event_v1_event_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *UpdateSeatStatusResponse) GetSeat() *Seat {
@@ -1251,7 +1312,7 @@ var File_proto_event_v1_event_proto protoreflect.FileDescriptor
 
 const file_proto_event_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1aproto/event/v1/event.proto\x12\bevent.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa0\x02\n" +
+	"\x1aproto/event/v1/event.proto\x12\bevent.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bgoogle/protobuf/empty.proto\"\xa0\x02\n" +
 	"\x12CreateEventRequest\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1a\n" +
@@ -1349,9 +1410,14 @@ const file_proto_event_v1_event_proto_rawDesc = "" +
 	"\aseat_id\x18\x01 \x01(\tR\x06seatId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1d\n" +
 	"\n" +
+	"booking_id\x18\x03 \x01(\tR\tbookingId\"p\n" +
+	"\x1cUpdateBatchSeatStatusRequest\x12\x19\n" +
+	"\bseat_ids\x18\x01 \x03(\tR\aseatIds\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1d\n" +
+	"\n" +
 	"booking_id\x18\x03 \x01(\tR\tbookingId\">\n" +
 	"\x18UpdateSeatStatusResponse\x12\"\n" +
-	"\x04seat\x18\x01 \x01(\v2\x0e.event.v1.SeatR\x04seat2\xcb\x05\n" +
+	"\x04seat\x18\x01 \x01(\v2\x0e.event.v1.SeatR\x04seat2\xa4\x06\n" +
 	"\fEventService\x12B\n" +
 	"\vCreateEvent\x12\x1c.event.v1.CreateEventRequest\x1a\x15.event.v1.EventDetail\x12<\n" +
 	"\bGetEvent\x12\x19.event.v1.GetEventRequest\x1a\x15.event.v1.EventDetail\x12G\n" +
@@ -1362,7 +1428,8 @@ const file_proto_event_v1_event_proto_rawDesc = "" +
 	"\x15GetTicketAvailability\x12&.event.v1.GetTicketAvailabilityRequest\x1a$.event.v1.TicketAvailabilityResponse\x12[\n" +
 	"\x18UpdateTicketAvailability\x12).event.v1.UpdateTicketAvailabilityRequest\x1a\x14.event.v1.TicketTier\x12A\n" +
 	"\bGetSeats\x12\x19.event.v1.GetSeatsRequest\x1a\x1a.event.v1.GetSeatsResponse\x12Y\n" +
-	"\x10UpdateSeatStatus\x12!.event.v1.UpdateSeatStatusRequest\x1a\".event.v1.UpdateSeatStatusResponseB1Z/github.com/ticketbox/pkg/proto/event/v1;eventv1b\x06proto3"
+	"\x10UpdateSeatStatus\x12!.event.v1.UpdateSeatStatusRequest\x1a\".event.v1.UpdateSeatStatusResponse\x12W\n" +
+	"\x15UpdateBatchSeatStatus\x12&.event.v1.UpdateBatchSeatStatusRequest\x1a\x16.google.protobuf.EmptyB1Z/github.com/ticketbox/pkg/proto/event/v1;eventv1b\x06proto3"
 
 var (
 	file_proto_event_v1_event_proto_rawDescOnce sync.Once
@@ -1376,7 +1443,7 @@ func file_proto_event_v1_event_proto_rawDescGZIP() []byte {
 	return file_proto_event_v1_event_proto_rawDescData
 }
 
-var file_proto_event_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_proto_event_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_proto_event_v1_event_proto_goTypes = []any{
 	(*CreateEventRequest)(nil),              // 0: event.v1.CreateEventRequest
 	(*CreateTicketTierRequest)(nil),         // 1: event.v1.CreateTicketTierRequest
@@ -1395,19 +1462,21 @@ var file_proto_event_v1_event_proto_goTypes = []any{
 	(*GetSeatsRequest)(nil),                 // 14: event.v1.GetSeatsRequest
 	(*GetSeatsResponse)(nil),                // 15: event.v1.GetSeatsResponse
 	(*UpdateSeatStatusRequest)(nil),         // 16: event.v1.UpdateSeatStatusRequest
-	(*UpdateSeatStatusResponse)(nil),        // 17: event.v1.UpdateSeatStatusResponse
-	(*timestamppb.Timestamp)(nil),           // 18: google.protobuf.Timestamp
+	(*UpdateBatchSeatStatusRequest)(nil),    // 17: event.v1.UpdateBatchSeatStatusRequest
+	(*UpdateSeatStatusResponse)(nil),        // 18: event.v1.UpdateSeatStatusResponse
+	(*timestamppb.Timestamp)(nil),           // 19: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),                   // 20: google.protobuf.Empty
 }
 var file_proto_event_v1_event_proto_depIdxs = []int32{
-	18, // 0: event.v1.CreateEventRequest.date:type_name -> google.protobuf.Timestamp
+	19, // 0: event.v1.CreateEventRequest.date:type_name -> google.protobuf.Timestamp
 	1,  // 1: event.v1.CreateEventRequest.tiers:type_name -> event.v1.CreateTicketTierRequest
 	8,  // 2: event.v1.ListEventsResponse.events:type_name -> event.v1.EventDetail
-	18, // 3: event.v1.UpdateEventRequest.date:type_name -> google.protobuf.Timestamp
-	18, // 4: event.v1.EventDetail.date:type_name -> google.protobuf.Timestamp
+	19, // 3: event.v1.UpdateEventRequest.date:type_name -> google.protobuf.Timestamp
+	19, // 4: event.v1.EventDetail.date:type_name -> google.protobuf.Timestamp
 	9,  // 5: event.v1.EventDetail.tiers:type_name -> event.v1.TicketTier
-	18, // 6: event.v1.EventDetail.created_at:type_name -> google.protobuf.Timestamp
-	18, // 7: event.v1.Seat.created_at:type_name -> google.protobuf.Timestamp
-	18, // 8: event.v1.Seat.updated_at:type_name -> google.protobuf.Timestamp
+	19, // 6: event.v1.EventDetail.created_at:type_name -> google.protobuf.Timestamp
+	19, // 7: event.v1.Seat.created_at:type_name -> google.protobuf.Timestamp
+	19, // 8: event.v1.Seat.updated_at:type_name -> google.protobuf.Timestamp
 	13, // 9: event.v1.GetSeatsResponse.seats:type_name -> event.v1.Seat
 	13, // 10: event.v1.UpdateSeatStatusResponse.seat:type_name -> event.v1.Seat
 	0,  // 11: event.v1.EventService.CreateEvent:input_type -> event.v1.CreateEventRequest
@@ -1419,17 +1488,19 @@ var file_proto_event_v1_event_proto_depIdxs = []int32{
 	12, // 17: event.v1.EventService.UpdateTicketAvailability:input_type -> event.v1.UpdateTicketAvailabilityRequest
 	14, // 18: event.v1.EventService.GetSeats:input_type -> event.v1.GetSeatsRequest
 	16, // 19: event.v1.EventService.UpdateSeatStatus:input_type -> event.v1.UpdateSeatStatusRequest
-	8,  // 20: event.v1.EventService.CreateEvent:output_type -> event.v1.EventDetail
-	8,  // 21: event.v1.EventService.GetEvent:output_type -> event.v1.EventDetail
-	4,  // 22: event.v1.EventService.ListEvents:output_type -> event.v1.ListEventsResponse
-	8,  // 23: event.v1.EventService.UpdateEvent:output_type -> event.v1.EventDetail
-	7,  // 24: event.v1.EventService.DeleteEvent:output_type -> event.v1.DeleteEventResponse
-	11, // 25: event.v1.EventService.GetTicketAvailability:output_type -> event.v1.TicketAvailabilityResponse
-	9,  // 26: event.v1.EventService.UpdateTicketAvailability:output_type -> event.v1.TicketTier
-	15, // 27: event.v1.EventService.GetSeats:output_type -> event.v1.GetSeatsResponse
-	17, // 28: event.v1.EventService.UpdateSeatStatus:output_type -> event.v1.UpdateSeatStatusResponse
-	20, // [20:29] is the sub-list for method output_type
-	11, // [11:20] is the sub-list for method input_type
+	17, // 20: event.v1.EventService.UpdateBatchSeatStatus:input_type -> event.v1.UpdateBatchSeatStatusRequest
+	8,  // 21: event.v1.EventService.CreateEvent:output_type -> event.v1.EventDetail
+	8,  // 22: event.v1.EventService.GetEvent:output_type -> event.v1.EventDetail
+	4,  // 23: event.v1.EventService.ListEvents:output_type -> event.v1.ListEventsResponse
+	8,  // 24: event.v1.EventService.UpdateEvent:output_type -> event.v1.EventDetail
+	7,  // 25: event.v1.EventService.DeleteEvent:output_type -> event.v1.DeleteEventResponse
+	11, // 26: event.v1.EventService.GetTicketAvailability:output_type -> event.v1.TicketAvailabilityResponse
+	9,  // 27: event.v1.EventService.UpdateTicketAvailability:output_type -> event.v1.TicketTier
+	15, // 28: event.v1.EventService.GetSeats:output_type -> event.v1.GetSeatsResponse
+	18, // 29: event.v1.EventService.UpdateSeatStatus:output_type -> event.v1.UpdateSeatStatusResponse
+	20, // 30: event.v1.EventService.UpdateBatchSeatStatus:output_type -> google.protobuf.Empty
+	21, // [21:31] is the sub-list for method output_type
+	11, // [11:21] is the sub-list for method input_type
 	11, // [11:11] is the sub-list for extension type_name
 	11, // [11:11] is the sub-list for extension extendee
 	0,  // [0:11] is the sub-list for field type_name
@@ -1446,7 +1517,7 @@ func file_proto_event_v1_event_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_event_v1_event_proto_rawDesc), len(file_proto_event_v1_event_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

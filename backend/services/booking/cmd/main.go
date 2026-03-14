@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 
+	"github.com/redis/go-redis/v9"
 	bookinggrpc "github.com/ticketbox/booking/internal/grpc"
 	"github.com/ticketbox/booking/internal/repository"
 	"github.com/ticketbox/booking/internal/service"
@@ -21,6 +22,7 @@ import (
 	"github.com/ticketbox/pkg/middleware"
 	bookingv1 "github.com/ticketbox/pkg/proto/booking/v1"
 	eventv1 "github.com/ticketbox/pkg/proto/event/v1"
+	redis_pkg "github.com/ticketbox/pkg/redis"
 )
 
 func main() {
@@ -41,6 +43,12 @@ func main() {
 	}
 	defer pool.Close()
 
+	redisCln := redis.NewClient(&redis.Options{
+		Addr: "redis:6379",
+	})
+
+	redisClient := redis_pkg.NewClient(redisCln)
+
 	// Connect to Event Service via gRPC
 	eventConn, err := grpc.NewClient(cfg.EventServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -50,7 +58,7 @@ func main() {
 	eventClient := eventv1.NewEventServiceClient(eventConn)
 
 	bookingRepo := repository.NewPostgresBookingRepository(pool)
-	bookingService := service.NewBookingService(bookingRepo, eventClient, logger)
+	bookingService := service.NewBookingService(bookingRepo, eventClient, logger, redisClient)
 
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(middleware.UnaryLoggingInterceptor(logger)),

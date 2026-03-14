@@ -55,7 +55,7 @@ func (h *BookingHandler) CreateBooking(c *gin.Context) {
 		BookingMode: mode,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "booking failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "booking failed " + err.Error()})
 		return
 	}
 

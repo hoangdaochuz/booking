@@ -5,6 +5,8 @@ package event.v1;
 option go_package = "github.com/ticketbox/pkg/proto/event/v1;eventv1";
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
 
 service EventService {
     rpc CreateEvent(CreateEventRequest) returns (EventDetail);
@@ -16,6 +18,7 @@ service EventService {
     rpc UpdateTicketAvailability(UpdateTicketAvailabilityRequest) returns (TicketTier);
     rpc GetSeats(GetSeatsRequest) returns (GetSeatsResponse);
     rpc UpdateSeatStatus(UpdateSeatStatusRequest) returns (UpdateSeatStatusResponse);
+    rpc UpdateBatchSeatStatus(UpdateBatchSeatStatusRequest) returns (google.protobuf.Empty);
 }
 
 message CreateEventRequest {
@@ -127,7 +130,7 @@ message Seat {
 
 message GetSeatsRequest {
     string event_id = 1;
-    string ticket_tier_id = 2;  // optional filter
+    string ticket_tier_id = 2; // optional filter
 }
 
 message GetSeatsResponse {
@@ -137,7 +140,13 @@ message GetSeatsResponse {
 message UpdateSeatStatusRequest {
     string seat_id = 1;
     string status = 2;
-    string booking_id = 3;  // optional
+    string booking_id = 3; // optional
+}
+
+message UpdateBatchSeatStatusRequest {
+    repeated string seat_ids = 1;
+    string status = 2;
+    string booking_id = 3;
 }
 
 message UpdateSeatStatusResponse {
