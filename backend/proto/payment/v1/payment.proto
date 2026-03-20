@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package payment.v1;
+
+option go_package = "github.com/ticketbox/pkg/proto/payment/v1;paymentv1";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+service PaymentService {
+    rpc CreatePayment(CreatePaymentRequest) returns (CreatePaymentResponse);
+    rpc GetPaymentById(GetPaymentByIdReq) returns (PaymentEntry);
+    rpc GetPayments(GetPaymentsReqeust) returns (PaymentList);
+    rpc UpdatePaymentStatus(UpdatePaymentStatusRequest) returns (google.protobuf.Empty);
+    rpc UpdatePayment(UpdatePaymentRequest) returns (google.protobuf.Empty);
+    rpc DeletePayment(DeletePaymentRequest) returns (google.protobuf.Empty);
+}
+
+message GetPaymentByIdReq {
+  string id = 1;
+}
+
+message PaymentEntry {
+  string id = 1;
+  string user_id = 2;
+  string booking_id = 3;
+  string order_id = 4;
+  string status = 5;
+  int32 price = 6;
+  string currency = 7;
+  string transaction_id = 8;
+  string payment_method = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+message CreatePaymentRequest {
+  string user_id = 2;
+  string booking_id = 3;
+  int32 price = 6;
+  string currency = 7;
+  string payment_method = 9;
+}
+
+message CreatePaymentResponse {
+  string id = 1;
+  string status = 2;
+}
+
+message GetPaymentsReqeust {
+  string user_id = 1;
+  string status = 2;
+  string booking_id = 3;
+  int32 price = 4;
+  string currency = 5;
+  string payment_method = 6;
+}
+
+message PaymentList {
+  repeated PaymentEntry payments = 1;
+}
+
+
+message UpdatePaymentStatusRequest {
+  string id = 1;
+  string status = 2;
+}
+
+message UpdatePaymentRequest {
+  string id = 1;
+  string order_id = 2;
+  string transaction_id = 3;
+  string status = 4;
+}
+
+message DeletePaymentRequest {
+  string id = 1;
+}

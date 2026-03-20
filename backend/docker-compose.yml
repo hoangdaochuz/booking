@@ -72,6 +72,23 @@ services:
     networks:
       - ticketbox-net
 
+  postgres-payment:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ticketbox_payment
+      POSTGRES_USER: ticketbox
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ticketbox_secret}
+    ports:
+      - "5437:5432"
+    volumes:
+      - pgdata-payment:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ticketbox -d ticketbox_payment"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ticketbox-net
   # ─── Redis ───
   redis:
     image: redis:7-alpine
@@ -202,7 +219,26 @@ services:
         condition: service_started
     networks:
       - ticketbox-net
-
+  payment-service:
+    build:
+      context: .
+      dockerfile: services/payment/Dockerfile
+    environment:
+      SERVICE_NAME: payment-service
+      GRPC_PORT: "50054"
+      DATABASE_URL: postgres://ticketbox:${POSTGRES_PASSWORD:-ticketbox_secret}@postgres-payment:5432/ticketbox_payment?sslmode=disable
+      KAFKA_BROKERS: kafka:29092
+      EVENT_SERVICE_ADDR: event-service:50052
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres-payment:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      event-service:
+        condition: service_started
+    networks:
+      - ticketbox-net
   notification-service:
     build:
       context: .
@@ -231,6 +267,7 @@ services:
       USER_SERVICE_ADDR: user-service:50051
       EVENT_SERVICE_ADDR: event-service:50052
       BOOKING_SERVICE_ADDR: booking-service:50053
+      PAYMENT_SERVICE_ADDR: payment-service:50054
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-your-jwt-secret-change-in-production}
     depends_on:

@@ -23,6 +23,7 @@ type Config struct {
 	UserServiceAddr    string `mapstructure:"USER_SERVICE_ADDR"`
 	EventServiceAddr   string `mapstructure:"EVENT_SERVICE_ADDR"`
 	BookingServiceAddr string `mapstructure:"BOOKING_SERVICE_ADDR"`
+	PaymentServiceAddr string `mapstructure:"PAYMENT_SERVICE_ADDR"`
 }
 
 func Load() (*Config, error) {
@@ -50,6 +51,7 @@ func Load() (*Config, error) {
 	cfg.UserServiceAddr = viper.GetString("USER_SERVICE_ADDR")
 	cfg.EventServiceAddr = viper.GetString("EVENT_SERVICE_ADDR")
 	cfg.BookingServiceAddr = viper.GetString("BOOKING_SERVICE_ADDR")
+	cfg.PaymentServiceAddr = viper.GetString("PAYMENT_SERVICE_ADDR")
 
 	return cfg, nil
 }

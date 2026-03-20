@@ -10,7 +10,7 @@ proto:
 			$$dir/*.proto; \
 	done
 	@echo "Copying generated files to pkg/proto/..."
-	@for service in booking event user; do \
+	@for service in booking event payment user; do \
 		mkdir -p pkg/proto/$$service/v1; \
 		cp proto/$$service/v1/*.pb.go pkg/proto/$$service/v1/ 2>/dev/null || true; \
 	done

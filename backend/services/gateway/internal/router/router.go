@@ -6,6 +6,7 @@ import (
 
 	bookingv1 "github.com/ticketbox/pkg/proto/booking/v1"
 	eventv1 "github.com/ticketbox/pkg/proto/event/v1"
+	paymentv1 "github.com/ticketbox/pkg/proto/payment/v1"
 	userv1 "github.com/ticketbox/pkg/proto/user/v1"
 
 	"github.com/ticketbox/gateway/internal/handler"
@@ -16,6 +17,7 @@ func SetupRouter(
 	userClient userv1.UserServiceClient,
 	eventClient eventv1.EventServiceClient,
 	bookingClient bookingv1.BookingServiceClient,
+	paymentClient paymentv1.PaymentServiceClient,
 	redisClient *redis.Client,
 ) *gin.Engine {
 	r := gin.New()
@@ -26,6 +28,7 @@ func SetupRouter(
 	eventHandler := handler.NewEventHandler(eventClient)
 	bookingHandler := handler.NewBookingHandler(bookingClient)
 	userHandler := handler.NewUserHandler(userClient)
+	paymentHandler := handler.NewPaymentHandler(paymentClient)
 
 	api := r.Group("/api")
 	{
@@ -49,6 +52,12 @@ func SetupRouter(
 			protected.GET("/bookings", bookingHandler.ListBookings)
 			protected.GET("/bookings/:id", bookingHandler.GetBooking)
 			protected.POST("/bookings/:id/cancel", bookingHandler.CancelBooking)
+
+			protected.POST("/payments/search", paymentHandler.SearchPayments)
+			protected.POST("/payments", paymentHandler.CreatePayment)
+			protected.GET("/payments/:id", paymentHandler.GetPaymentById)
+			protected.PATCH("/payments/:id", paymentHandler.UpdatePayment)
+			protected.DELETE("/payments/:id", paymentHandler.DeletePayment)
 
 			admin := protected.Group("")
 			admin.Use(middleware.AdminOnly())
