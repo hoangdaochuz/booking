@@ -6,5 +6,6 @@ use (
 	./services/event
 	./services/gateway
 	./services/notification
+	./services/payment
 	./services/user
 )

@@ -17,6 +17,7 @@ import (
 	"github.com/ticketbox/pkg/config"
 	bookingv1 "github.com/ticketbox/pkg/proto/booking/v1"
 	eventv1 "github.com/ticketbox/pkg/proto/event/v1"
+	paymentv1 "github.com/ticketbox/pkg/proto/payment/v1"
 	userv1 "github.com/ticketbox/pkg/proto/user/v1"
 
 	"github.com/ticketbox/gateway/internal/router"
@@ -62,10 +63,20 @@ func main() {
 	}
 	defer bookingConn.Close()
 
+	paymentConn, err := grpc.NewClient(cfg.PaymentServiceAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(16*1024*1024)),
+		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(16*1024*1024)),
+	)
+	if err != nil {
+		logger.Fatal("Failed to connect to payment service", zap.Error(err))
+	}
+	defer paymentConn.Close()
+
 	userClient := userv1.NewUserServiceClient(userConn)
 	eventClient := eventv1.NewEventServiceClient(eventConn)
 	bookingClient := bookingv1.NewBookingServiceClient(bookingConn)
-
+	paymentClient := paymentv1.NewPaymentServiceClient(paymentConn)
 	// Connect to Redis
 	opt, err := redis.ParseURL(cfg.RedisURL)
 	if err != nil {
@@ -74,7 +85,7 @@ func main() {
 	redisClient := redis.NewClient(opt)
 
 	// Setup router
-	r := router.SetupRouter(userClient, eventClient, bookingClient, redisClient)
+	r := router.SetupRouter(userClient, eventClient, bookingClient, paymentClient, redisClient)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%s", cfg.HTTPPort),
