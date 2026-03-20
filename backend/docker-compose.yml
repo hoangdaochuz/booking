@@ -282,6 +282,7 @@ volumes:
   pgdata-user:
   pgdata-event:
   pgdata-booking:
+  pgdata-payment:
   pgdata-notification:
   redis-data:
 
