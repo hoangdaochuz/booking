@@ -62,6 +62,7 @@ export interface ApiBooking {
   total_amount_cents: number;
   items: ApiBookingItem[];
   created_at: string;
+  paymentIntentClientSecret?: string;
 }
 
 export interface ApiListBookingsResponse {

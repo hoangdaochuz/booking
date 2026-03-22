@@ -34,16 +34,19 @@ message PaymentEntry {
 }
 
 message CreatePaymentRequest {
-  string user_id = 2;
-  string booking_id = 3;
-  int32 price = 6;
-  string currency = 7;
-  string payment_method = 9;
+  string user_id = 1;
+  string booking_id = 2;
+  int32 price = 3;
+  string currency = 4;
+  string payment_method = 5;
+  string user_email = 6;
 }
 
 message CreatePaymentResponse {
   string id = 1;
   string status = 2;
+  string paymentIntentId = 3;
+  string paymentIntentClientSecret = 4;
 }
 
 message GetPaymentsReqeust {

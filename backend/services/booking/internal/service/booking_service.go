@@ -12,31 +12,40 @@ import (
 	"github.com/ticketbox/booking/internal/domain"
 	"github.com/ticketbox/booking/internal/repository"
 	eventv1 "github.com/ticketbox/pkg/proto/event/v1"
+	paymentv1 "github.com/ticketbox/pkg/proto/payment/v1"
 	"github.com/ticketbox/pkg/redis"
 )
 
 type BookingService struct {
-	bookingRepo repository.BookingRepository
-	eventClient eventv1.EventServiceClient
-	logger      *zap.Logger
-	redisClient *redis.RedisClient
+	bookingRepo   repository.BookingRepository
+	eventClient   eventv1.EventServiceClient
+	paymentClient paymentv1.PaymentServiceClient
+	logger        *zap.Logger
+	redisClient   *redis.RedisClient
 }
 
 func NewBookingService(
 	bookingRepo repository.BookingRepository,
 	eventClient eventv1.EventServiceClient,
+	paymentClient paymentv1.PaymentServiceClient,
 	logger *zap.Logger,
 	redisClient *redis.RedisClient,
 ) *BookingService {
 	return &BookingService{
-		bookingRepo: bookingRepo,
-		eventClient: eventClient,
-		logger:      logger,
-		redisClient: redisClient,
+		bookingRepo:   bookingRepo,
+		eventClient:   eventClient,
+		logger:        logger,
+		redisClient:   redisClient,
+		paymentClient: paymentClient,
 	}
 }
 
-func (s *BookingService) CreateBooking(ctx context.Context, userID, eventID uuid.UUID, items []domain.BookingItem, mode string) (*domain.Booking, error) {
+type CreateBookingResponse struct {
+	Booking             *domain.Booking
+	PaymentClientSecret string
+}
+
+func (s *BookingService) CreateBooking(ctx context.Context, userID, eventID uuid.UUID, items []domain.BookingItem, mode string) (*CreateBookingResponse, error) {
 	now := time.Now()
 	booking := &domain.Booking{
 		ID:        uuid.New(),
@@ -188,6 +197,21 @@ func (s *BookingService) CreateBooking(ctx context.Context, userID, eventID uuid
 		return nil, fmt.Errorf("update batch seat status failed: %w", err)
 	}
 
+	s.logger.Info("Creating payment")
+	paymentRes, err := s.paymentClient.CreatePayment(ctx, &paymentv1.CreatePaymentRequest{
+		UserId:    userID.String(),
+		BookingId: booking.ID.String(),
+		Price:     int32(totalCents) / 10, // Convert to USD
+		Currency:  "usd",
+		// PaymentMethod: ,
+		UserEmail: "nhkhai2805@gmail.com", // update later
+	})
+
+	if err != nil {
+		s.logger.Error("Fail to create payment", zap.Error(err))
+		return nil, err
+	}
+
 	// Release Lock
 	for lock := range lockChan {
 		if lock != nil {
@@ -197,7 +221,10 @@ func (s *BookingService) CreateBooking(ctx context.Context, userID, eventID uuid
 			}
 		}
 	}
-	return booking, nil
+	return &CreateBookingResponse{
+		Booking:             booking,
+		PaymentClientSecret: paymentRes.PaymentIntentClientSecret,
+	}, nil
 }
 
 func (s *BookingService) CancelBooking(ctx context.Context, bookingID, userID uuid.UUID) (*domain.Booking, error) {

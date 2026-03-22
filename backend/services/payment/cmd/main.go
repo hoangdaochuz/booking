@@ -8,6 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	stripe_go "github.com/stripe/stripe-go/v84"
+	"github.com/ticketbox/payment/internal/gateway/stripe"
 	payment_grpc "github.com/ticketbox/payment/internal/grpc"
 	"github.com/ticketbox/payment/internal/repository"
 	"github.com/ticketbox/payment/internal/service"
@@ -37,8 +39,12 @@ func main() {
 	}
 	defer pool.Close()
 
+	stripe_go.Key = cfg.StripeSecretKey
+
+	stripeGateway := stripe.NewStripePaymentGateway(logger, cfg.StripeSecretWebhook)
+
 	paymentRepo := repository.NewPostgresPaymentRepository(pool)
-	paymentService := service.NewPaymentService(paymentRepo)
+	paymentService := service.NewPaymentService(paymentRepo, logger, stripeGateway)
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(middleware.UnaryLoggingInterceptor(logger)))
 	paymentServer := payment_grpc.NewPaymentServer(paymentService, logger)
 	paymentv1.RegisterPaymentServiceServer(grpcServer, paymentServer)

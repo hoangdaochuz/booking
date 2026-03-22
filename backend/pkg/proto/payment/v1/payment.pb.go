@@ -193,11 +193,12 @@ func (x *PaymentEntry) GetUpdatedAt() *timestamppb.Timestamp {
 
 type CreatePaymentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	BookingId     string                 `protobuf:"bytes,3,opt,name=booking_id,json=bookingId,proto3" json:"booking_id,omitempty"`
-	Price         int32                  `protobuf:"varint,6,opt,name=price,proto3" json:"price,omitempty"`
-	Currency      string                 `protobuf:"bytes,7,opt,name=currency,proto3" json:"currency,omitempty"`
-	PaymentMethod string                 `protobuf:"bytes,9,opt,name=payment_method,json=paymentMethod,proto3" json:"payment_method,omitempty"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	BookingId     string                 `protobuf:"bytes,2,opt,name=booking_id,json=bookingId,proto3" json:"booking_id,omitempty"`
+	Price         int32                  `protobuf:"varint,3,opt,name=price,proto3" json:"price,omitempty"`
+	Currency      string                 `protobuf:"bytes,4,opt,name=currency,proto3" json:"currency,omitempty"`
+	PaymentMethod string                 `protobuf:"bytes,5,opt,name=payment_method,json=paymentMethod,proto3" json:"payment_method,omitempty"`
+	UserEmail     string                 `protobuf:"bytes,6,opt,name=user_email,json=userEmail,proto3" json:"user_email,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -267,12 +268,21 @@ func (x *CreatePaymentRequest) GetPaymentMethod() string {
 	return ""
 }
 
+func (x *CreatePaymentRequest) GetUserEmail() string {
+	if x != nil {
+		return x.UserEmail
+	}
+	return ""
+}
+
 type CreatePaymentResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	Id                        string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Status                    string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	PaymentIntentId           string                 `protobuf:"bytes,3,opt,name=paymentIntentId,proto3" json:"paymentIntentId,omitempty"`
+	PaymentIntentClientSecret string                 `protobuf:"bytes,4,opt,name=paymentIntentClientSecret,proto3" json:"paymentIntentClientSecret,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *CreatePaymentResponse) Reset() {
@@ -315,6 +325,20 @@ func (x *CreatePaymentResponse) GetId() string {
 func (x *CreatePaymentResponse) GetStatus() string {
 	if x != nil {
 		return x.Status
+	}
+	return ""
+}
+
+func (x *CreatePaymentResponse) GetPaymentIntentId() string {
+	if x != nil {
+		return x.PaymentIntentId
+	}
+	return ""
+}
+
+func (x *CreatePaymentResponse) GetPaymentIntentClientSecret() string {
+	if x != nil {
+		return x.PaymentIntentClientSecret
 	}
 	return ""
 }
@@ -634,17 +658,21 @@ const file_proto_payment_v1_payment_proto_rawDesc = "" +
 	"created_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xa7\x01\n" +
+	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xc6\x01\n" +
 	"\x14CreatePaymentRequest\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x1d\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1d\n" +
 	"\n" +
-	"booking_id\x18\x03 \x01(\tR\tbookingId\x12\x14\n" +
-	"\x05price\x18\x06 \x01(\x05R\x05price\x12\x1a\n" +
-	"\bcurrency\x18\a \x01(\tR\bcurrency\x12%\n" +
-	"\x0epayment_method\x18\t \x01(\tR\rpaymentMethod\"?\n" +
+	"booking_id\x18\x02 \x01(\tR\tbookingId\x12\x14\n" +
+	"\x05price\x18\x03 \x01(\x05R\x05price\x12\x1a\n" +
+	"\bcurrency\x18\x04 \x01(\tR\bcurrency\x12%\n" +
+	"\x0epayment_method\x18\x05 \x01(\tR\rpaymentMethod\x12\x1d\n" +
+	"\n" +
+	"user_email\x18\x06 \x01(\tR\tuserEmail\"\xa7\x01\n" +
 	"\x15CreatePaymentResponse\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
-	"\x06status\x18\x02 \x01(\tR\x06status\"\xbd\x01\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12(\n" +
+	"\x0fpaymentIntentId\x18\x03 \x01(\tR\x0fpaymentIntentId\x12<\n" +
+	"\x19paymentIntentClientSecret\x18\x04 \x01(\tR\x19paymentIntentClientSecret\"\xbd\x01\n" +
 	"\x12GetPaymentsReqeust\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1d\n" +

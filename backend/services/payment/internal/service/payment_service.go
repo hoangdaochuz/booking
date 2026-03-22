@@ -5,27 +5,54 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ticketbox/payment/internal/domain"
+	payment_gateway "github.com/ticketbox/payment/internal/gateway"
 	"github.com/ticketbox/payment/internal/repository"
 	"go.uber.org/zap"
 )
 
 type PaymentService struct {
-	repo   repository.PaymentRepositoryInterface
-	logger *zap.Logger
+	repo    repository.PaymentRepositoryInterface
+	gateway payment_gateway.PaymentGatewayInterface
+	logger  *zap.Logger
 }
 
-func NewPaymentService(repo repository.PaymentRepositoryInterface) *PaymentService {
+func NewPaymentService(repo repository.PaymentRepositoryInterface, logger *zap.Logger, gateway payment_gateway.PaymentGatewayInterface) *PaymentService {
 	return &PaymentService{
-		repo: repo,
+		repo:    repo,
+		logger:  logger,
+		gateway: gateway,
 	}
 }
-func (p *PaymentService) CreatePayment(ctx context.Context, payment *domain.Payment) (uuid.UUID, error) {
-	err := p.repo.CreatePayment(ctx, payment)
+func (p *PaymentService) CreatePayment(ctx context.Context, req *domain.CreatePaymentRequest) (*domain.CreatePaymentResponse, error) {
+	err := p.repo.CreatePayment(ctx, &req.Payment)
 	if err != nil {
 		p.logger.Sugar().Errorf("Fail to create payment: %w", err)
-		return uuid.Nil, err
+		return nil, err
 	}
-	return payment.ID, nil
+	res, err := p.gateway.CreatePaymentIntent(ctx, &domain.CreatePaymentIntentRequest{
+		Amount:   int(req.Price),
+		Currency: req.Currency,
+		AutomaticPaymentMethods: domain.AutomaticPaymentMethods{
+			Enabled:        true,
+			AllowRedirects: "always",
+		},
+		Customer:      req.UserId.String(),
+		PaymentMethod: req.PaymentMethod,
+		ReceiptEmail:  req.UserEmail,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &domain.CreatePaymentResponse{
+		PaymentItentId:            res.Id,
+		PaymentIntentClientSecret: res.ClientSecret,
+		Created:                   res.Created,
+		Currency:                  res.Currency,
+		CustomerID:                res.Customer,
+		Status:                    res.Status,
+		ReceiptEmail:              res.ReceiptEmail,
+	}, nil
 }
 
 func (p *PaymentService) GetPaymentById(ctx context.Context, id uuid.UUID) (*domain.Payment, error) {

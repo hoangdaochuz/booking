@@ -24,6 +24,7 @@ func (p *PaymentHandler) SearchPayments(ctx *gin.Context) {
 
 func (p *PaymentHandler) CreatePayment(ctx *gin.Context) {
 	userId, _ := ctx.Get("user_id")
+	userEmail, _ := ctx.Get("email")
 
 	var req struct {
 		BookingId     string `json:"booking_id" binding:"required"`
@@ -44,6 +45,7 @@ func (p *PaymentHandler) CreatePayment(ctx *gin.Context) {
 		Price:         req.Price,
 		Currency:      req.Currency,
 		PaymentMethod: req.PaymentMethod,
+		UserEmail:     userEmail.(string),
 	})
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{

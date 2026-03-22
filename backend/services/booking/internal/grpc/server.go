@@ -64,16 +64,15 @@ func (s *BookingServer) CreateBooking(ctx context.Context, req *bookingv1.Create
 		mode = "pessimistic"
 	}
 
-	booking, err := s.service.CreateBooking(ctx, userID, eventID, items, mode)
+	res, err := s.service.CreateBooking(ctx, userID, eventID, items, mode)
 	if err != nil {
-		if booking != nil && booking.Status == domain.StatusFailed {
-			return toBookingDetail(booking), nil
+		if res != nil && res.Booking != nil && res.Booking.Status == domain.StatusFailed {
+			return toBookingDetail(res.Booking), nil
 		}
 		s.logger.Error("CreateBooking failed", zap.Error(err))
 		return nil, status.Error(codes.Internal, "booking failed: "+err.Error())
 	}
-
-	return toBookingDetail(booking), nil
+	return toBookingDetailV2(res), nil
 }
 
 func (s *BookingServer) GetBooking(ctx context.Context, req *bookingv1.GetBookingRequest) (*bookingv1.BookingDetail, error) {
@@ -143,6 +142,33 @@ func toBookingDetail(b *domain.Booking) *bookingv1.BookingDetail {
 		CreatedAt:        timestamppb.New(b.CreatedAt),
 	}
 	for _, item := range b.Items {
+		var seatIDs []string
+		for _, id := range item.SeatIDs {
+			seatIDs = append(seatIDs, id.String())
+		}
+		detail.Items = append(detail.Items, &bookingv1.BookingItem{
+			Id:             item.ID.String(),
+			TicketTierId:   item.TicketTierID.String(),
+			TierName:       item.TierName,
+			Quantity:       item.Quantity,
+			UnitPriceCents: item.UnitPriceCents,
+			SeatIds:        seatIDs,
+		})
+	}
+	return detail
+}
+
+func toBookingDetailV2(b *service.CreateBookingResponse) *bookingv1.BookingDetail {
+	detail := &bookingv1.BookingDetail{
+		Id:                        b.Booking.ID.String(),
+		UserId:                    b.Booking.UserID.String(),
+		EventId:                   b.Booking.EventID.String(),
+		Status:                    string(b.Booking.Status),
+		TotalAmountCents:          b.Booking.TotalAmountCents,
+		CreatedAt:                 timestamppb.New(b.Booking.CreatedAt),
+		PaymentIntentClientSecret: b.PaymentClientSecret,
+	}
+	for _, item := range b.Booking.Items {
 		var seatIDs []string
 		for _, id := range item.SeatIDs {
 			seatIDs = append(seatIDs, id.String())

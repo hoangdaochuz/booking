@@ -359,16 +359,17 @@ func (x *CancelBookingRequest) GetUserId() string {
 }
 
 type BookingDetail struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	UserId           string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	EventId          string                 `protobuf:"bytes,3,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	Status           string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
-	TotalAmountCents int64                  `protobuf:"varint,5,opt,name=total_amount_cents,json=totalAmountCents,proto3" json:"total_amount_cents,omitempty"`
-	Items            []*BookingItem         `protobuf:"bytes,6,rep,name=items,proto3" json:"items,omitempty"`
-	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	Id                        string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	UserId                    string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	EventId                   string                 `protobuf:"bytes,3,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	Status                    string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	TotalAmountCents          int64                  `protobuf:"varint,5,opt,name=total_amount_cents,json=totalAmountCents,proto3" json:"total_amount_cents,omitempty"`
+	Items                     []*BookingItem         `protobuf:"bytes,6,rep,name=items,proto3" json:"items,omitempty"`
+	CreatedAt                 *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	PaymentIntentClientSecret string                 `protobuf:"bytes,8,opt,name=paymentIntentClientSecret,proto3" json:"paymentIntentClientSecret,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *BookingDetail) Reset() {
@@ -448,6 +449,13 @@ func (x *BookingDetail) GetCreatedAt() *timestamppb.Timestamp {
 		return x.CreatedAt
 	}
 	return nil
+}
+
+func (x *BookingDetail) GetPaymentIntentClientSecret() string {
+	if x != nil {
+		return x.PaymentIntentClientSecret
+	}
+	return ""
 }
 
 type BookingItem struct {
@@ -562,7 +570,7 @@ const file_proto_booking_v1_booking_proto_rawDesc = "" +
 	"\x14CancelBookingRequest\x12\x1d\n" +
 	"\n" +
 	"booking_id\x18\x01 \x01(\tR\tbookingId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\"\x83\x02\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\"\xc1\x02\n" +
 	"\rBookingDetail\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x19\n" +
@@ -571,7 +579,8 @@ const file_proto_booking_v1_booking_proto_rawDesc = "" +
 	"\x12total_amount_cents\x18\x05 \x01(\x03R\x10totalAmountCents\x12-\n" +
 	"\x05items\x18\x06 \x03(\v2\x17.booking.v1.BookingItemR\x05items\x129\n" +
 	"\n" +
-	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xc1\x01\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
+	"\x19paymentIntentClientSecret\x18\b \x01(\tR\x19paymentIntentClientSecret\"\xc1\x01\n" +
 	"\vBookingItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12$\n" +
 	"\x0eticket_tier_id\x18\x02 \x01(\tR\fticketTierId\x12\x1b\n" +

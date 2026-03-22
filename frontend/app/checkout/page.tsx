@@ -1,17 +1,21 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CreditCard, Check, Loader2 } from "lucide-react";
+import { Check, Lock } from "lucide-react";
 import { useBooking } from "@/lib/booking-context";
 import { useAuth } from "@/lib/auth-context";
+import { StripePaymentForm } from "@/components/stripe-payment-form";
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cart, getEvent, purchaseTickets, error: bookingError } = useBooking();
+  const {
+    cart,
+    getEvent,
+    confirmPayment,
+    paymentClientSecret,
+  } = useBooking();
   const { user } = useAuth();
-  const [isProcessing, setIsProcessing] = useState(false);
 
   if (!cart) {
     return (
@@ -45,13 +49,16 @@ export default function CheckoutPage() {
   const handlingCharge = 3.5;
   const total = subtotal + serviceFee + handlingCharge;
 
-  async function handlePay() {
-    setIsProcessing(true);
-    const success = await purchaseTickets(user!.name, user!.email);
-    setIsProcessing(false);
-    if (success) {
-      router.push("/my-tickets");
-    }
+  function handlePaymentSuccess(paymentIntentId: string) {
+    confirmPayment(paymentIntentId).then((success) => {
+      if (success) {
+        router.push("/my-tickets");
+      }
+    });
+  }
+
+  function handlePaymentError(message: string) {
+    console.error("Payment error:", message);
   }
 
   const steps = [
@@ -59,6 +66,23 @@ export default function CheckoutPage() {
     { label: "Checkout", active: true },
     { label: "Confirm", done: false },
   ];
+
+  // Payment not initialized - redirect back to seats
+  if (!paymentClientSecret) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="flex flex-col items-center gap-4">
+          <p className="text-muted text-lg">Payment session expired or not initialized.</p>
+          <Link
+            href={`/events/${cart.eventId}/seats`}
+            className="bg-primary hover:bg-primary-hover text-white font-medium rounded-full px-6 h-12 flex items-center transition-colors"
+          >
+            Back to Seat Selection
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col">
@@ -107,11 +131,13 @@ export default function CheckoutPage() {
 
       {/* Content */}
       <div className="flex gap-8 px-12 py-8">
-        {/* Booking Info */}
+        {/* Booking Info & Payment */}
         <div className="flex-1">
           <div className="bg-card border border-border rounded-lg p-8 shadow-sm flex flex-col gap-6">
-            <h2 className="text-lg font-bold">Booking Confirmation</h2>
-            <div className="flex flex-col gap-4">
+            <h2 className="text-lg font-bold">Payment Details</h2>
+
+            {/* User Info */}
+            <div className="flex flex-col gap-4 pb-6 border-b border-border">
               <div className="flex flex-col gap-1.5">
                 <span className="text-xs font-medium text-muted">Name</span>
                 <span className="text-sm font-medium">{user.name}</span>
@@ -131,17 +157,25 @@ export default function CheckoutPage() {
                 </div>
               </div>
             </div>
-            {bookingError && (
-              <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">
-                <div className="font-medium mb-1">Purchase Failed</div>
-                <div>{bookingError}</div>
+
+            {/* Payment Form */}
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2 text-sm text-muted">
+                <Lock size={14} />
+                <span>Secure payment powered by Stripe</span>
               </div>
-            )}
+              <StripePaymentForm
+                clientSecret={paymentClientSecret}
+                amount={total}
+                onSuccess={handlePaymentSuccess}
+                onError={handlePaymentError}
+              />
+            </div>
           </div>
         </div>
 
         {/* Order Summary */}
-        <div className="w-[400px] shrink-0">
+        <div className="w-100 shrink-0">
           <div className="bg-card border border-border rounded-lg shadow-sm flex flex-col">
             <div className="flex items-center gap-4 p-6 border-b border-border">
               <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0">
@@ -176,23 +210,6 @@ export default function CheckoutPage() {
                 <span className="font-medium">Total</span>
                 <span className="text-2xl font-bold text-primary">${total.toFixed(2)}</span>
               </div>
-              <button
-                onClick={handlePay}
-                disabled={isProcessing}
-                className="flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover disabled:opacity-70 text-white font-medium rounded-full h-12 transition-colors"
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <CreditCard size={16} />
-                    Confirm Booking
-                  </>
-                )}
-              </button>
             </div>
           </div>
         </div>

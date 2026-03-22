@@ -210,6 +210,7 @@ services:
       EVENT_SERVICE_ADDR: event-service:50052
       BOOKING_MODE: ${BOOKING_MODE:-pessimistic}
       REDIS_URL: redis://redis:6379
+      PAYMENT_SERVICE_ADDR: payment-service:50054
     depends_on:
       postgres-booking:
         condition: service_healthy
@@ -230,6 +231,9 @@ services:
       KAFKA_BROKERS: kafka:29092
       EVENT_SERVICE_ADDR: event-service:50052
       REDIS_URL: redis://redis:6379
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_SECRET_WEBHOOK: ${STRIPE_SECRET_WEBHOOK}
     depends_on:
       postgres-payment:
         condition: service_healthy
