@@ -39,23 +39,28 @@ func (p *PaymentServer) CreatePayment(ctx context.Context, req *paymentv1.Create
 		return nil, status.Error(codes.InvalidArgument, "Invalid booking id")
 	}
 	paymentId := uuid.New()
-	payment := domain.Payment{
-		ID:            paymentId,
-		UserId:        userId,
-		BookingId:     &bookingId,
-		Price:         req.Price,
-		Currency:      req.Currency,
-		PaymentMethod: req.PaymentMethod,
-		Status:        domain.PaymentPending,
+	payment := domain.CreatePaymentRequest{
+		Payment: domain.Payment{
+			ID:            paymentId,
+			UserId:        userId,
+			BookingId:     &bookingId,
+			Price:         req.Price,
+			Currency:      req.Currency,
+			PaymentMethod: req.PaymentMethod,
+			Status:        domain.PaymentPending,
+		},
+		UserEmail: req.UserEmail,
 	}
-	paymentId, err = p.service.CreatePayment(ctx, &payment)
+	res, err := p.service.CreatePayment(ctx, &payment)
 	if err != nil {
 		p.logger.Sugar().Errorf("fail to create payment: %w", err)
 		return nil, err
 	}
 	return &paymentv1.CreatePaymentResponse{
-		Id:     paymentId.String(),
-		Status: string(domain.PaymentPending),
+		Id:                        paymentId.String(),
+		Status:                    string(domain.PaymentPending),
+		PaymentIntentId:           res.PaymentItentId,
+		PaymentIntentClientSecret: res.PaymentIntentClientSecret,
 	}, nil
 }
 

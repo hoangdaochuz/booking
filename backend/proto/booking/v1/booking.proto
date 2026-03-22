@@ -23,7 +23,7 @@ message CreateBookingRequest {
 message BookingItemRequest {
     string ticket_tier_id = 1;
     int32 quantity = 2;
-    repeated string seat_ids = 3;  // Selected seat IDs for this booking item
+    repeated string seat_ids = 3; // Selected seat IDs for this booking item
 }
 
 message GetBookingRequest {
@@ -54,6 +54,7 @@ message BookingDetail {
     int64 total_amount_cents = 5;
     repeated BookingItem items = 6;
     google.protobuf.Timestamp created_at = 7;
+    string paymentIntentClientSecret = 8;
 }
 
 message BookingItem {
@@ -62,5 +63,5 @@ message BookingItem {
     string tier_name = 3;
     int32 quantity = 4;
     int64 unit_price_cents = 5;
-    repeated string seat_ids = 6;  // Booked seat IDs for this item
+    repeated string seat_ids = 6; // Booked seat IDs for this item
 }

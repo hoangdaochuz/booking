@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 )
 
@@ -24,9 +25,16 @@ type Config struct {
 	EventServiceAddr   string `mapstructure:"EVENT_SERVICE_ADDR"`
 	BookingServiceAddr string `mapstructure:"BOOKING_SERVICE_ADDR"`
 	PaymentServiceAddr string `mapstructure:"PAYMENT_SERVICE_ADDR"`
+
+	StripePublishableKey string `mapstructure:"STRIPE_PUBLISHABLE_KEY"`
+	StripeSecretKey      string `mapstructure:"STRIPE_SECRET_KEY"`
+	StripeSecretWebhook  string `mapstructure:"STRIPE_SECRET_WEBHOOK"`
 }
 
 func Load() (*Config, error) {
+	// Load .env file if it exists (ignore error if file doesn't exist)
+	_ = godotenv.Load()
+
 	viper.AutomaticEnv()
 
 	viper.SetDefault("GRPC_PORT", "50051")
@@ -52,6 +60,9 @@ func Load() (*Config, error) {
 	cfg.EventServiceAddr = viper.GetString("EVENT_SERVICE_ADDR")
 	cfg.BookingServiceAddr = viper.GetString("BOOKING_SERVICE_ADDR")
 	cfg.PaymentServiceAddr = viper.GetString("PAYMENT_SERVICE_ADDR")
+	cfg.StripePublishableKey = viper.GetString("STRIPE_PUBLISHABLE_KEY")
+	cfg.StripeSecretKey = viper.GetString("STRIPE_SECRET_KEY")
+	cfg.StripeSecretWebhook = viper.GetString("STRIPE_SECRET_WEBHOOK")
 
 	return cfg, nil
 }

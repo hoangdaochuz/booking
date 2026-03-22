@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Check, ChevronRight, X, Armchair, Loader2 } from "lucide-react";
 import { useBooking } from "@/lib/booking-context";
@@ -13,7 +13,7 @@ import type { Seat, SeatRow, VenueSection, SelectedSeat, VenueLayout, Event } fr
 export default function SeatsPage() {
   const params = useParams();
   const router = useRouter();
-  const { getEvent, setCart, isLoading } = useBooking();
+  const { getEvent, setCart, isLoading, initiateBooking, clearPaymentState } = useBooking();
 
   const eventId = params.id as string;
   const event = getEvent(eventId);
@@ -22,6 +22,8 @@ export default function SeatsPage() {
   const [selectedSeats, setSelectedSeats] = useState<SelectedSeat[]>([]);
   const [venueLayout, setVenueLayout] = useState<VenueLayout | null>(null);
   const [isLoadingSeats, setIsLoadingSeats] = useState(true);
+  const [isInitiatingBooking, setIsInitiatingBooking] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
 
   // Fetch seats for this event
   useEffect(() => {
@@ -143,8 +145,25 @@ export default function SeatsPage() {
     });
   }
 
-  function handleContinue() {
+  async function handleContinue() {
+    setIsInitiatingBooking(true);
+    setInitError(null);
+    clearPaymentState();
+
+    // Set the cart first
     setCart({ eventId, seats: selectedSeats });
+
+    // Initiate booking to get Stripe client secret
+    const result = await initiateBooking();
+
+    setIsInitiatingBooking(false);
+
+    if (!result) {
+      setInitError("Failed to initiate payment. Please try again.");
+      return;
+    }
+
+    // Navigate to checkout with payment ready
     router.push("/checkout");
   }
 
@@ -297,13 +316,28 @@ export default function SeatsPage() {
                 </>
               )}
 
+              {initError && (
+                <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">
+                  {initError}
+                </div>
+              )}
+
               <button
                 onClick={handleContinue}
-                disabled={selectedSeats.length === 0}
+                disabled={selectedSeats.length === 0 || isInitiatingBooking}
                 className="flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium rounded-full h-12 transition-colors"
               >
-                Continue to Checkout
-                <ChevronRight size={16} />
+                {isInitiatingBooking ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Initializing...
+                  </>
+                ) : (
+                  <>
+                    Continue to Checkout
+                    <ChevronRight size={16} />
+                  </>
+                )}
               </button>
             </div>
           </div>

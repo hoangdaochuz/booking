@@ -128,12 +128,13 @@ func toBookingJSON(b *bookingv1.BookingDetail) gin.H {
 		})
 	}
 	return gin.H{
-		"id":                 b.Id,
-		"user_id":            b.UserId,
-		"event_id":           b.EventId,
-		"status":             b.Status,
-		"total_amount_cents": b.TotalAmountCents,
-		"items":              items,
-		"created_at":         b.CreatedAt.AsTime().Format(time.RFC3339),
+		"id":                        b.Id,
+		"user_id":                   b.UserId,
+		"event_id":                  b.EventId,
+		"status":                    b.Status,
+		"total_amount_cents":        b.TotalAmountCents,
+		"items":                     items,
+		"created_at":                b.CreatedAt.AsTime().Format(time.RFC3339),
+		"paymentIntentClientSecret": b.PaymentIntentClientSecret,
 	}
 }
