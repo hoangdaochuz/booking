@@ -89,6 +89,24 @@ services:
       retries: 5
     networks:
       - ticketbox-net
+  postgres-saga:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ticketbox_saga
+      POSTGRES_USER: ticketbox
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ticketbox_secret}
+    ports:
+      - "5438:5432"
+    volumes:
+      - pgdata-saga:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ticketbox -d ticketbox_saga"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ticketbox-net
+
   # ─── Redis ───
   redis:
     image: redis:7-alpine
@@ -243,6 +261,30 @@ services:
         condition: service_started
     networks:
       - ticketbox-net
+
+  saga-service:
+    build:
+      context: .
+      dockerfile: services/saga/Dockerfile
+    environment:
+      SERVICE_NAME: saga-service
+      GRPC_PORT: "50055"
+      DATABASE_URL: postgres://ticketbox:${POSTGRES_PASSWORD:-ticketbox_secret}@postgres-saga:5432/ticketbox_saga?sslmode=disable
+      KAFKA_BROKERS: kafka:29092
+      EVENT_SERVICE_ADDR: event-service:50052
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres-saga:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      booking-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+    networks:
+      - ticketbox-net
+
   notification-service:
     build:
       context: .
@@ -287,6 +329,7 @@ volumes:
   pgdata-event:
   pgdata-booking:
   pgdata-payment:
+  pgdata-saga:
   pgdata-notification:
   redis-data:
 

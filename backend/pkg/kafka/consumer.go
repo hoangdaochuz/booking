@@ -39,7 +39,7 @@ func (c *Consumer) Start(ctx context.Context) error {
 			msg, err := c.reader.ReadMessage(ctx)
 			if err != nil {
 				if ctx.Err() != nil {
-					return nil
+					return err
 				}
 				c.logger.Error("Read message failed", zap.Error(err))
 				continue

@@ -1,6 +1,6 @@
 .PHONY: proto build up down migrate test test-load logs clean
 
-SERVICES := gateway user event booking notification
+SERVICES := gateway user event booking notification payment saga
 
 proto:
 	@echo "Generating protobuf code..."
@@ -10,7 +10,7 @@ proto:
 			$$dir/*.proto; \
 	done
 	@echo "Copying generated files to pkg/proto/..."
-	@for service in booking event payment user; do \
+	@for service in booking event payment user saga; do \
 		mkdir -p pkg/proto/$$service/v1; \
 		cp proto/$$service/v1/*.pb.go pkg/proto/$$service/v1/ 2>/dev/null || true; \
 	done
