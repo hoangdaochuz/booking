@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS sagas;
+DROP TABLE IF EXISTS saga_step;

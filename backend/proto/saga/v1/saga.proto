@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package saga.v1;
+
+option go_package = "github.com/ticketbox/pkg/proto/saga/v1;sagav1";
+
+service SagaOrchestratorService {
+  rpc StartOrderSaga(StartOrderSagaRequest) returns (StartOrderSagaResponse);
+}
+
+
+message StartOrderSagaRequest {
+  string bookingId = 1;
+}
+
+message StartOrderSagaResponse {
+    string status = 1;
+    string message = 2;
+}
