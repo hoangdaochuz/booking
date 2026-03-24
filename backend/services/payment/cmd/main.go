@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,6 +12,8 @@ import (
 	stripe_go "github.com/stripe/stripe-go/v84"
 	"github.com/ticketbox/payment/internal/gateway/stripe"
 	payment_grpc "github.com/ticketbox/payment/internal/grpc"
+	payment_http "github.com/ticketbox/payment/internal/http"
+	"github.com/ticketbox/payment/internal/kafka"
 	"github.com/ticketbox/payment/internal/repository"
 	"github.com/ticketbox/payment/internal/service"
 	"github.com/ticketbox/pkg/config"
@@ -41,7 +44,9 @@ func main() {
 
 	stripe_go.Key = cfg.StripeSecretKey
 
-	stripeGateway := stripe.NewStripePaymentGateway(logger, cfg.StripeSecretWebhook)
+	paymentProducer := kafka.NewPaymentProducer(cfg.KafkaBrokers, logger)
+
+	stripeGateway := stripe.NewStripePaymentGateway(logger, cfg.StripeSecretWebhook, paymentProducer)
 
 	paymentRepo := repository.NewPostgresPaymentRepository(pool)
 	paymentService := service.NewPaymentService(paymentRepo, logger, stripeGateway)
@@ -50,6 +55,22 @@ func main() {
 	paymentv1.RegisterPaymentServiceServer(grpcServer, paymentServer)
 	reflection.Register(grpcServer)
 
+	// HTTP server for Webhook stripe/zalopay/momo payment gateway
+	mux := http.NewServeMux()
+	stripeWebhookGateway := stripe.NewStripePaymentGateway(logger, cfg.StripeSecretWebhook, paymentProducer)
+	paymentHttpServerStripeHandler := payment_http.NewPaymentHttpHandler(paymentService, logger, stripeWebhookGateway)
+	// Momo, zalopay,...
+
+	mux.HandleFunc("/webhooks/stripe", paymentHttpServerStripeHandler.WebhookHandler)
+
+	go func() {
+		logger.Info("Payment http server has started on 8081 port")
+		if err := http.ListenAndServe(":8081", mux); err != nil {
+			logger.Fatal("Fail to listen and serve payment http server", zap.Error(err))
+		}
+	}()
+
+	// GRPC Server for internal communication
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", cfg.GRPCPort))
 	if err != nil {
 		logger.Fatal("Failed to listen", zap.Error(err))

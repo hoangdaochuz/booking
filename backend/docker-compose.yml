@@ -242,6 +242,8 @@ services:
     build:
       context: .
       dockerfile: services/payment/Dockerfile
+    ports:
+      - "8081:8081"
     environment:
       SERVICE_NAME: payment-service
       GRPC_PORT: "50054"

@@ -46,9 +46,13 @@ func (s *SagaService) GetSagaByBookingId(ctx context.Context, id uuid.UUID) (*do
 }
 
 func (s *SagaService) HandleSagaAferPaymentSuccess(ctx context.Context, req json.RawMessage) error {
+	// TODO
+	s.logger.Info("Handling Saga after payment process successfully")
 	return nil
 }
 
 func (s *SagaService) HandleSagaAfterPaymentFailure(ctx context.Context, req json.RawMessage) error {
+	// TODO
+	s.logger.Info("Handling Saga after payment process fail")
 	return nil
 }
