@@ -13,6 +13,7 @@ import (
 	"github.com/ticketbox/pkg/middleware"
 	sagav1 "github.com/ticketbox/pkg/proto/saga/v1"
 	saga_grpc "github.com/ticketbox/saga/internal/grpc"
+	"github.com/ticketbox/saga/internal/kafka"
 	"github.com/ticketbox/saga/internal/registry"
 	"github.com/ticketbox/saga/internal/repository"
 	"github.com/ticketbox/saga/internal/service"
@@ -60,6 +61,16 @@ func main() {
 			logger.Fatal("gRPC serve failed", zap.Error(err))
 		}
 	}()
+
+	sagaComsumer := kafka.NewSagaOrchestratorConsumer(cfg.KafkaBrokers, sagaService, logger)
+
+	go func() {
+		err := sagaComsumer.Start(ctx)
+		if err != nil {
+			logger.Fatal("Fail to start Saga consumer", zap.Error(err))
+		}
+	}()
+
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
 	<-sigChan
