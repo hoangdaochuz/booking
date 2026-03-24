@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -44,8 +45,8 @@ type SagaStep struct {
 	Name                  string
 	Execute               func(ctx context.Context) error
 	Compensate            func(ctx context.Context) error
-	ExecutedAt            int64
-	CompenstatedAt        int64
+	ExecutedAt            time.Time
+	CompenstatedAt        time.Time
 	Status                SagaStepStatus
 	Order                 int16
 	ShouldPauseForPayment bool

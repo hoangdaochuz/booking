@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ticketbox/saga/internal/domain"
+	"github.com/ticketbox/saga/internal/repository"
 	"go.uber.org/zap"
 )
 
@@ -53,8 +54,9 @@ func (s *SagaStepRegistry) Register(name string, processor SagaStepProcessor) {
 }
 
 type SagaHandler struct {
-	saga   *domain.Saga
-	logger *zap.Logger
+	saga     *domain.Saga
+	sagaRepo repository.SagaRepositoryInterface
+	logger   *zap.Logger
 }
 
 func NewSagaHandler(saga *domain.Saga, logger *zap.Logger) *SagaHandler {
@@ -77,18 +79,35 @@ func (s *SagaHandler) Execute(ctx context.Context, index int) (*domain.Saga, err
 			s.logger.Sugar().Errorf("[Saga - %s]: Step %d - %s execute fail", s.saga.Name, step.Order, step.Name, zap.Error(err))
 			s.saga.Status = domain.SAGA_ROLLING_BACK
 			s.saga.Steps[index].Status = domain.SAGA_STEP_FAILED
+			err := s.sagaRepo.UpdateSaga(ctx, s.saga, &step.ID)
+			if err != nil {
+				return nil, err
+			}
 			return s.compensate(ctx, index)
 		}
 		s.saga.Steps[index].Status = domain.SAGA_STEP_COMPLETED
-		s.saga.Steps[index].ExecutedAt = time.Now().Unix()
+		s.saga.Steps[index].ExecutedAt = time.Now()
 		if s.saga.Steps[index].ShouldPauseForPayment {
 			s.saga.Status = domain.SAGA_PENDING
+			// s.saga.CurrentStepIndex = s.saga.CurrentStepIndex + 1
+			err := s.sagaRepo.UpdateSaga(ctx, s.saga, &step.ID)
+			if err != nil {
+				return nil, err
+			}
 			return s.saga, nil
 		}
 		index++
 		s.saga.CurrentStepIndex = index
+		err := s.sagaRepo.UpdateSaga(ctx, s.saga, &step.ID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	s.saga.Status = domain.SAGA_COMPLETED
+	err := s.sagaRepo.UpdateSaga(ctx, s.saga, nil)
+	if err != nil {
+		return nil, err
+	}
 	return s.saga, nil
 }
 
@@ -100,16 +119,29 @@ func (s *SagaHandler) compensate(ctx context.Context, index int) (*domain.Saga, 
 		if err := step.Compensate(ctx); err != nil {
 			s.saga.Steps[i].Status = domain.SAGA_STEP_FAILED
 			isRolledback = false
+			err := s.sagaRepo.UpdateSaga(ctx, s.saga, &step.ID)
+			if err != nil {
+				return nil, err
+			}
 			s.logger.Sugar().Error("[Saga - %s]: Step %d - %s compensate fail", s.saga.Name, step.Order, s.saga.Steps[i].Name, zap.Error(err))
 			continue
 		}
 		s.saga.Steps[i].Status = domain.SAGA_STEP_COMPENSATED
-		s.saga.Steps[i].CompenstatedAt = time.Now().Unix()
+		s.saga.Steps[i].CompenstatedAt = time.Now()
+		s.saga.CurrentStepIndex = i
+		err := s.sagaRepo.UpdateSaga(ctx, s.saga, &step.ID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if isRolledback {
 		s.saga.Status = domain.SAGA_ROLLED_BACK
 	} else {
 		s.saga.Status = domain.SAGA_FAIL
+	}
+	err := s.sagaRepo.UpdateSaga(ctx, s.saga, nil)
+	if err != nil {
+		return nil, err
 	}
 	return s.saga, nil
 }

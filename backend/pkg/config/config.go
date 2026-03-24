@@ -25,6 +25,7 @@ type Config struct {
 	EventServiceAddr   string `mapstructure:"EVENT_SERVICE_ADDR"`
 	BookingServiceAddr string `mapstructure:"BOOKING_SERVICE_ADDR"`
 	PaymentServiceAddr string `mapstructure:"PAYMENT_SERVICE_ADDR"`
+	SagaServiceAddr    string `mapstructure:"SAGA_SERVICE_ADDR"`
 
 	StripePublishableKey string `mapstructure:"STRIPE_PUBLISHABLE_KEY"`
 	StripeSecretKey      string `mapstructure:"STRIPE_SECRET_KEY"`
@@ -63,6 +64,7 @@ func Load() (*Config, error) {
 	cfg.StripePublishableKey = viper.GetString("STRIPE_PUBLISHABLE_KEY")
 	cfg.StripeSecretKey = viper.GetString("STRIPE_SECRET_KEY")
 	cfg.StripeSecretWebhook = viper.GetString("STRIPE_SECRET_WEBHOOK")
+	cfg.SagaServiceAddr = viper.GetString("SAGA_SERVICE_ADDR")
 
 	return cfg, nil
 }

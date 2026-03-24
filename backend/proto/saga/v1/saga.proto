@@ -5,15 +5,23 @@ package saga.v1;
 option go_package = "github.com/ticketbox/pkg/proto/saga/v1;sagav1";
 
 service SagaOrchestratorService {
-  rpc StartOrderSaga(StartOrderSagaRequest) returns (StartOrderSagaResponse);
+  rpc StartOrderSaga(StartOrderSagaRequest) returns (OrderSagaResponse);
+  rpc CompensateOrderSaga(CompensateOrderSagaRequest) returns (OrderSagaResponse);
 }
+
+message CompensateOrderSagaRequest {
+  string sagaId = 1;
+}
+
 
 
 message StartOrderSagaRequest {
   string bookingId = 1;
 }
 
-message StartOrderSagaResponse {
+message OrderSagaResponse {
     string status = 1;
     string message = 2;
+    string paymentIntentClientSecret = 3;
+    string sagaId = 4;
 }

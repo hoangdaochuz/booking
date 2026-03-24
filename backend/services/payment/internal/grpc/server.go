@@ -114,7 +114,6 @@ func (p *PaymentServer) GetPaymentById(ctx context.Context, req *paymentv1.GetPa
 	}
 	payment := toPaymentEntry(res)
 	return &payment, nil
-
 }
 
 func (p *PaymentServer) GetPayments(ctx context.Context, req *paymentv1.GetPaymentsReqeust) (*paymentv1.PaymentList, error) {

@@ -21,6 +21,10 @@ func NewSagaOrchestratorServer(service *service.SagaService, logger *zap.Logger)
 	}
 }
 
-func (s *SagaOrchestratorServer) StartOrderSaga(context.Context, *sagav1.StartOrderSagaRequest) (*sagav1.StartOrderSagaResponse, error) {
+func (s *SagaOrchestratorServer) StartOrderSaga(ctx context.Context, req *sagav1.StartOrderSagaRequest) (*sagav1.OrderSagaResponse, error) {
+	return nil, nil
+}
+
+func (s *SagaOrchestratorServer) CompensateOrderSaga(ctx context.Context, req *sagav1.CompensateOrderSagaRequest) (*sagav1.OrderSagaResponse, error) {
 	return nil, nil
 }

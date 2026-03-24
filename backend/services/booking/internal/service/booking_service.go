@@ -13,6 +13,7 @@ import (
 	"github.com/ticketbox/booking/internal/repository"
 	eventv1 "github.com/ticketbox/pkg/proto/event/v1"
 	paymentv1 "github.com/ticketbox/pkg/proto/payment/v1"
+	sagav1 "github.com/ticketbox/pkg/proto/saga/v1"
 	"github.com/ticketbox/pkg/redis"
 )
 
@@ -20,6 +21,7 @@ type BookingService struct {
 	bookingRepo   repository.BookingRepository
 	eventClient   eventv1.EventServiceClient
 	paymentClient paymentv1.PaymentServiceClient
+	sagaClient    sagav1.SagaOrchestratorServiceClient
 	logger        *zap.Logger
 	redisClient   *redis.RedisClient
 }
@@ -28,6 +30,7 @@ func NewBookingService(
 	bookingRepo repository.BookingRepository,
 	eventClient eventv1.EventServiceClient,
 	paymentClient paymentv1.PaymentServiceClient,
+	sagaClient sagav1.SagaOrchestratorServiceClient,
 	logger *zap.Logger,
 	redisClient *redis.RedisClient,
 ) *BookingService {
@@ -37,6 +40,7 @@ func NewBookingService(
 		logger:        logger,
 		redisClient:   redisClient,
 		paymentClient: paymentClient,
+		sagaClient:    sagaClient,
 	}
 }
 
@@ -180,37 +184,39 @@ func (s *BookingService) CreateBooking(ctx context.Context, userID, eventID uuid
 		return nil, fmt.Errorf("save booking: %w", err)
 	}
 
-	// Update seat statuses to 'reserved' for all selected seats
-	// TODO: Improve later. Should batch update seat status by seatIds
-	// for _, item := range items {
-	// 	for _, seatID := range item.SeatIDs {
-	// 	}
+	// Start Saga process:
+	sagaResponse, err := s.sagaClient.StartOrderSaga(ctx, &sagav1.StartOrderSagaRequest{
+		BookingId: booking.ID.String(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Order saga can't complete: %w", err)
+	}
+
+	// _, err := s.eventClient.UpdateBatchSeatStatus(ctx, &eventv1.UpdateBatchSeatStatusRequest{
+	// 	SeatIds:   seatIdsReq,
+	// 	Status:    "reserved",
+	// 	BookingId: booking.ID.String(),
+	// })
+	// if err != nil {
+	// 	s.logger.Error("Failed to update batch seat status",
+	// 		zap.Error(err))
+	// 	return nil, fmt.Errorf("update batch seat status failed: %w", err)
 	// }
-	_, err := s.eventClient.UpdateBatchSeatStatus(ctx, &eventv1.UpdateBatchSeatStatusRequest{
-		SeatIds:   seatIdsReq,
-		Status:    "reserved",
-		BookingId: booking.ID.String(),
-	})
-	if err != nil {
-		s.logger.Error("Failed to update batch seat status",
-			zap.Error(err))
-		return nil, fmt.Errorf("update batch seat status failed: %w", err)
-	}
 
-	s.logger.Info("Creating payment")
-	paymentRes, err := s.paymentClient.CreatePayment(ctx, &paymentv1.CreatePaymentRequest{
-		UserId:    userID.String(),
-		BookingId: booking.ID.String(),
-		Price:     int32(totalCents) / 10, // Convert to USD
-		Currency:  "usd",
-		// PaymentMethod: ,
-		UserEmail: "nhkhai2805@gmail.com", // update later
-	})
+	// s.logger.Info("Creating payment")
+	// paymentRes, err := s.paymentClient.CreatePayment(ctx, &paymentv1.CreatePaymentRequest{
+	// 	UserId:    userID.String(),
+	// 	BookingId: booking.ID.String(),
+	// 	Price:     int32(totalCents) / 10, // Convert to USD
+	// 	Currency:  "usd",
+	// 	// PaymentMethod: ,
+	// 	UserEmail: "nhkhai2805@gmail.com", // update later
+	// })
 
-	if err != nil {
-		s.logger.Error("Fail to create payment", zap.Error(err))
-		return nil, err
-	}
+	// if err != nil {
+	// 	s.logger.Error("Fail to create payment", zap.Error(err))
+	// 	return nil, err
+	// }
 
 	// Release Lock
 	for lock := range lockChan {
@@ -223,7 +229,7 @@ func (s *BookingService) CreateBooking(ctx context.Context, userID, eventID uuid
 	}
 	return &CreateBookingResponse{
 		Booking:             booking,
-		PaymentClientSecret: paymentRes.PaymentIntentClientSecret,
+		PaymentClientSecret: sagaResponse.PaymentIntentClientSecret,
 	}, nil
 }
 

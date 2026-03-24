@@ -260,7 +260,7 @@ export default function SeatsPage() {
         </div>
 
         {/* Right Sidebar */}
-        <div className="w-[360px] shrink-0">
+        <div className="w-90 shrink-0">
           <div className="bg-card border border-border rounded-lg shadow-sm flex flex-col sticky top-8">
             <div className="p-6 border-b border-border">
               <h3 className="font-bold text-lg">Your Seats</h3>
