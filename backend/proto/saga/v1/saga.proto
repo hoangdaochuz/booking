@@ -17,6 +17,9 @@ message CompensateOrderSagaRequest {
 
 message StartOrderSagaRequest {
   string bookingId = 1;
+  repeated string seatIds = 2;
+  string userId = 3;
+  int32 totalCents = 4;
 }
 
 message OrderSagaResponse {

@@ -36,7 +36,7 @@ func (s *SagaRepository) Create(ctx context.Context, saga *domain.Saga) error {
 	}
 
 	for _, step := range saga.Steps {
-		query = `INSERT INTO saga_steps(id , saga_id, name, status, order, should_pause_for_payment)
+		query = `INSERT INTO saga_steps(id , saga_id, name, status, "order", should_pause_for_payment)
 				 VALUES($1, $2, $3, $4, $5, $6)`
 		_, err = tx.Exec(ctx, query, step.ID, step.SagaID, step.Name, string(step.Status), step.Order, step.ShouldPauseForPayment)
 		if err != nil {
@@ -60,7 +60,7 @@ func (s *SagaRepository) GetSagaById(ctx context.Context, id uuid.UUID) (*domain
 	}
 	saga.Status = domain.SagaStatus(sagaStatus)
 
-	subQuery := `SELECT id, saga_id, name, executed_at, compensated_at, status, order, should_pause_for_payment
+	subQuery := `SELECT id, saga_id, name, executed_at, compensated_at, status, "order", should_pause_for_payment
 				FROM saga_steps WHERE id = $1`
 
 	rows, err := s.pool.Query(ctx, subQuery, saga.ID)
@@ -126,7 +126,7 @@ func (s *SagaRepository) GetSagaByBookingId(ctx context.Context, id uuid.UUID) (
 	}
 	saga.Status = domain.SagaStatus(sagaStatus)
 
-	subQuery := `SELECT id, saga_id, name, executed_at, compensated_at, status, order, should_pause_for_payment
+	subQuery := `SELECT id, saga_id, name, executed_at, compensated_at, status, "order", should_pause_for_payment
 				FROM saga_steps WHERE id = $1`
 
 	rows, err := s.pool.Query(ctx, subQuery, saga.ID)

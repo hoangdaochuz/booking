@@ -68,6 +68,9 @@ func (x *CompensateOrderSagaRequest) GetSagaId() string {
 type StartOrderSagaRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	BookingId     string                 `protobuf:"bytes,1,opt,name=bookingId,proto3" json:"bookingId,omitempty"`
+	SeatIds       []string               `protobuf:"bytes,2,rep,name=seatIds,proto3" json:"seatIds,omitempty"`
+	UserId        string                 `protobuf:"bytes,3,opt,name=userId,proto3" json:"userId,omitempty"`
+	TotalCents    int32                  `protobuf:"varint,4,opt,name=totalCents,proto3" json:"totalCents,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -107,6 +110,27 @@ func (x *StartOrderSagaRequest) GetBookingId() string {
 		return x.BookingId
 	}
 	return ""
+}
+
+func (x *StartOrderSagaRequest) GetSeatIds() []string {
+	if x != nil {
+		return x.SeatIds
+	}
+	return nil
+}
+
+func (x *StartOrderSagaRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *StartOrderSagaRequest) GetTotalCents() int32 {
+	if x != nil {
+		return x.TotalCents
+	}
+	return 0
 }
 
 type OrderSagaResponse struct {
@@ -183,9 +207,14 @@ const file_proto_saga_v1_saga_proto_rawDesc = "" +
 	"\n" +
 	"\x18proto/saga/v1/saga.proto\x12\asaga.v1\"4\n" +
 	"\x1aCompensateOrderSagaRequest\x12\x16\n" +
-	"\x06sagaId\x18\x01 \x01(\tR\x06sagaId\"5\n" +
+	"\x06sagaId\x18\x01 \x01(\tR\x06sagaId\"\x87\x01\n" +
 	"\x15StartOrderSagaRequest\x12\x1c\n" +
-	"\tbookingId\x18\x01 \x01(\tR\tbookingId\"\x9b\x01\n" +
+	"\tbookingId\x18\x01 \x01(\tR\tbookingId\x12\x18\n" +
+	"\aseatIds\x18\x02 \x03(\tR\aseatIds\x12\x16\n" +
+	"\x06userId\x18\x03 \x01(\tR\x06userId\x12\x1e\n" +
+	"\n" +
+	"totalCents\x18\x04 \x01(\x05R\n" +
+	"totalCents\"\x9b\x01\n" +
 	"\x11OrderSagaResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12<\n" +

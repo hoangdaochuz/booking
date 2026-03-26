@@ -39,10 +39,22 @@ var (
 	SAGA_STEP_FAILED       SagaStepStatus = "FAILED"
 )
 
+type SagaStepFunc func(ctx context.Context, req SagaStepRequest) (SagaStepResponse, error)
+
+type SagaStepRequest interface {
+	String() string
+}
+
+type SagaStepResponse interface {
+	String() string
+}
+
 type SagaStep struct {
 	ID                    uuid.UUID
 	SagaID                uuid.UUID
 	Name                  string
+	ExecuteReq            SagaStepRequest
+	CompensateReq         SagaStepRequest
 	Execute               func(ctx context.Context) error
 	Compensate            func(ctx context.Context) error
 	ExecutedAt            time.Time
@@ -50,4 +62,5 @@ type SagaStep struct {
 	Status                SagaStepStatus
 	Order                 int16
 	ShouldPauseForPayment bool
+	// SagaPaymentRes        *paymentv1.CreatePaymentResponse
 }
