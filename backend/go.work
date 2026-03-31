@@ -7,5 +7,6 @@ use (
 	./services/gateway
 	./services/notification
 	./services/payment
+	./services/saga
 	./services/user
 )

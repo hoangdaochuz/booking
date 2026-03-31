@@ -15,6 +15,7 @@ import (
 	"github.com/ticketbox/payment/internal/domain"
 	"github.com/ticketbox/payment/internal/kafka"
 	pkgkafka "github.com/ticketbox/pkg/kafka"
+	pkgtyped "github.com/ticketbox/pkg/typed"
 	"github.com/ticketbox/pkg/utils"
 	"go.uber.org/zap"
 )
@@ -68,12 +69,6 @@ func (s *StripePaymentGateway) CreatePaymentIntent(ctx context.Context, req *dom
 	}, nil
 }
 
-type PaymentEvent struct {
-	Id      string
-	Data    *stripe.EventData
-	Request *stripe.EventRequest
-}
-
 func (s *StripePaymentGateway) HandleWebhookAfterPayment(ctx context.Context, req *http.Request, res http.ResponseWriter) (*domain.WebhookPaymentResponse, error) {
 	const MaxBodyBytes = int64(65536)
 	req.Body = http.MaxBytesReader(res, req.Body, MaxBodyBytes)
@@ -99,7 +94,7 @@ func (s *StripePaymentGateway) HandleWebhookAfterPayment(ctx context.Context, re
 		s.logger.Info("Payment intent create successfully")
 		// TODO
 		msgKey := uuid.New().String()
-		payload := PaymentEvent{
+		payload := pkgtyped.PaymentEvent{
 			Id:      event.ID,
 			Data:    event.Data,
 			Request: event.Request,
@@ -128,7 +123,7 @@ func (s *StripePaymentGateway) HandleWebhookAfterPayment(ctx context.Context, re
 		s.logger.Info("Payment intent create fail")
 		// TODO
 		msgKey := uuid.New().String()
-		payload := PaymentEvent{
+		payload := pkgtyped.PaymentEvent{
 			Id:      event.ID,
 			Data:    event.Data,
 			Request: event.Request,

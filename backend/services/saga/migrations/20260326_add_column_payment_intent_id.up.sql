@@ -1,0 +1,1 @@
+ALTER TABLE sagas ADD COLUMN payment_intent_id VARCHAR(250);

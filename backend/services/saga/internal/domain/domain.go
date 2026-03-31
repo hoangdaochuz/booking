@@ -26,6 +26,7 @@ type Saga struct {
 	Steps            []SagaStep
 	Status           SagaStatus
 	CurrentStepIndex int
+	PaymentIntentId  string
 }
 
 type SagaStepStatus string

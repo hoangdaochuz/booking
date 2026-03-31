@@ -6,10 +6,12 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/stripe/stripe-go/v84"
 	bookingv1 "github.com/ticketbox/pkg/proto/booking/v1"
 	eventv1 "github.com/ticketbox/pkg/proto/event/v1"
 	paymentv1 "github.com/ticketbox/pkg/proto/payment/v1"
 	sagapkg "github.com/ticketbox/pkg/saga"
+	pkgtyped "github.com/ticketbox/pkg/typed"
 	"github.com/ticketbox/saga/internal/domain"
 	"github.com/ticketbox/saga/internal/registry"
 	"github.com/ticketbox/saga/internal/repository"
@@ -209,6 +211,21 @@ func (s *SagaService) StartOrderSaga(ctx context.Context, req *StartOrderSagaReq
 
 func (s *SagaService) HandleSagaAferPaymentSuccess(ctx context.Context, req json.RawMessage) error {
 	// TODO
+	var paymentEvent pkgtyped.PaymentEvent
+	err := json.Unmarshal(req, &paymentEvent)
+	if err != nil {
+		s.logger.Sugar().Errorf("fail to unmarshal payment event", zap.Error(err))
+		return fmt.Errorf("fail to unmarshal payment event: %w", err)
+	}
+	stripeEventData := paymentEvent.Data
+	var paymentIntent stripe.PaymentIntent
+	err = json.Unmarshal(stripeEventData.Raw, &paymentIntent)
+	if err != nil {
+		s.logger.Sugar().Errorf("fail to unmarshal payment intent", zap.Error(err))
+		return fmt.Errorf("fail to unmarshal payment intent: %w", err)
+	}
+
+	// Update payment (status, payment_intent_id)
 	s.logger.Info("Handling Saga after payment process successfully")
 	return nil
 }

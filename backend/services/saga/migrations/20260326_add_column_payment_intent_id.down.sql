@@ -1,0 +1,1 @@
+ALTER TABLE sagas DROP COLUMN payment_intent_id;
