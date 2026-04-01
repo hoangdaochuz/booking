@@ -229,6 +229,7 @@ services:
       BOOKING_MODE: ${BOOKING_MODE:-pessimistic}
       REDIS_URL: redis://redis:6379
       PAYMENT_SERVICE_ADDR: payment-service:50054
+      SAGA_SERVICE_ADDR: saga-service:50055
     depends_on:
       postgres-booking:
         condition: service_healthy
@@ -275,6 +276,7 @@ services:
       KAFKA_BROKERS: kafka:29092
       EVENT_SERVICE_ADDR: event-service:50052
       REDIS_URL: redis://redis:6379
+      PAYMENT_SERVICE_ADDR: payment-service:50054
     depends_on:
       postgres-saga:
         condition: service_healthy

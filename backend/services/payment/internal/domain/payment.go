@@ -17,17 +17,18 @@ var (
 )
 
 type Payment struct {
-	ID             uuid.UUID
-	UserId         uuid.UUID
-	BookingId      *uuid.UUID
-	OrderId        *uuid.UUID
-	Status         PaymentStatus
-	Price          int32
-	Currency       string
-	Transaction_id *uuid.UUID
-	PaymentMethod  string
-	CreatedAt      time.Time
-	UpdateAt       time.Time
+	ID              uuid.UUID
+	UserId          uuid.UUID
+	BookingId       *uuid.UUID
+	OrderId         *uuid.UUID
+	Status          PaymentStatus
+	Price           int32
+	Currency        string
+	Transaction_id  *uuid.UUID
+	PaymentIntentId string
+	PaymentMethod   string
+	CreatedAt       time.Time
+	UpdateAt        time.Time
 }
 
 type CreatePaymentRequest struct {

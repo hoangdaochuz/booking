@@ -51,7 +51,7 @@ func (p *PostgresPaymentRepository) CreatePayment(ctx context.Context, payment *
 }
 
 func (p *PostgresPaymentRepository) GetPaymentByID(ctx context.Context, ID uuid.UUID) (*domain.Payment, error) {
-	query := `SELECT p.id, p.user_id, p.booking_id, p.order_id, p.status, p.price, p.currency, p.transaction_id, p.payment_method, p.created_at
+	query := `SELECT p.id, p.user_id, p.booking_id, p.order_id, p.status, p.price, p.currency, p.transaction_id, p.payment_intent_id, p.payment_method, p.created_at
 		FROM payments as p
 		WHERE p.id = $1;
 	`
@@ -67,6 +67,7 @@ func (p *PostgresPaymentRepository) GetPaymentByID(ctx context.Context, ID uuid.
 		&status,
 		&result.Price,
 		&result.Currency,
+		&result.PaymentIntentId,
 		&transactionId,
 		&result.PaymentMethod,
 		&result.CreatedAt)
@@ -97,6 +98,15 @@ func (p *PostgresPaymentRepository) UpdatePaymentStatus(ctx context.Context, ID 
 	return err
 }
 
+func (p *PostgresPaymentRepository) UpdatePaymentStatusByPaymentIntentId(ctx context.Context, paymentIntentId string, status domain.PaymentStatus) error {
+	query := `UPDATE payments
+			  SET status = $1
+			  WHERE payment_intent_id = $2;`
+
+	_, err := p.pool.Exec(ctx, query, string(status), paymentIntentId)
+	return err
+}
+
 func (p *PostgresPaymentRepository) UpdatePayment(ctx context.Context, payment *domain.Payment) error {
 
 	bookingId := uuid.UUID{}
@@ -113,9 +123,9 @@ func (p *PostgresPaymentRepository) UpdatePayment(ctx context.Context, payment *
 	}
 
 	query := `UPDATE payments
-			  SET booking_id = $2, order_id = $3, status = $4, price = $5, currency = $6, transaction_id = $7, payment_method = $8, updated_at = $9
+			  SET booking_id = $2, order_id = $3, status = $4, price = $5, currency = $6, transaction_id = $7, payment_method = $8, updated_at = $9, payment_intent_id = $10
 			  WHERE id = $1`
-	_, err := p.pool.Exec(ctx, query, payment.ID, bookingId, orderId, string(payment.Status), payment.Price, payment.Currency, transactionId, payment.PaymentMethod, time.Now())
+	_, err := p.pool.Exec(ctx, query, payment.ID, bookingId, orderId, string(payment.Status), payment.Price, payment.Currency, transactionId, payment.PaymentMethod, time.Now(), payment.PaymentIntentId)
 	return err
 }
 

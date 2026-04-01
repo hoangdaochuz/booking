@@ -21,6 +21,25 @@ func NewSagaOrchestratorServer(service *service.SagaService, logger *zap.Logger)
 	}
 }
 
-func (s *SagaOrchestratorServer) StartOrderSaga(context.Context, *sagav1.StartOrderSagaRequest) (*sagav1.StartOrderSagaResponse, error) {
+func (s *SagaOrchestratorServer) StartOrderSaga(ctx context.Context, req *sagav1.StartOrderSagaRequest) (*sagav1.OrderSagaResponse, error) {
+	res, err := s.service.StartOrderSaga(ctx, &service.StartOrderSagaRequest{
+		BookingId:  req.BookingId,
+		SeatIds:    req.SeatIds,
+		UserId:     req.UserId,
+		TotalCents: int(req.TotalCents),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &sagav1.OrderSagaResponse{
+		Status:                    res.Status,
+		Message:                   res.Message,
+		PaymentIntentClientSecret: res.PaymentClientSecret,
+		SagaId:                    res.SagaId,
+	}, nil
+}
+
+func (s *SagaOrchestratorServer) CompensateOrderSaga(ctx context.Context, req *sagav1.CompensateOrderSagaRequest) (*sagav1.OrderSagaResponse, error) {
 	return nil, nil
 }

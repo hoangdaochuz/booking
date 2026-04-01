@@ -22,7 +22,7 @@ import (
 	"github.com/ticketbox/pkg/middleware"
 	bookingv1 "github.com/ticketbox/pkg/proto/booking/v1"
 	eventv1 "github.com/ticketbox/pkg/proto/event/v1"
-	paymentv1 "github.com/ticketbox/pkg/proto/payment/v1"
+	sagav1 "github.com/ticketbox/pkg/proto/saga/v1"
 	redis_pkg "github.com/ticketbox/pkg/redis"
 )
 
@@ -57,16 +57,16 @@ func main() {
 	}
 	defer eventConn.Close()
 	eventClient := eventv1.NewEventServiceClient(eventConn)
-
-	paymentConn, err := grpc.NewClient(cfg.PaymentServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	fmt.Println("cfg.SagaServiceAddr: ", cfg.SagaServiceAddr)
+	sagaConn, err := grpc.NewClient(cfg.SagaServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		logger.Fatal("Failed to connect to payment service", zap.Error(err))
+		logger.Fatal("Failed to connect to saga service", zap.Error(err))
 	}
-	defer paymentConn.Close()
-	paymentClient := paymentv1.NewPaymentServiceClient(paymentConn)
+	defer sagaConn.Close()
+	sagaClient := sagav1.NewSagaOrchestratorServiceClient(sagaConn)
 
 	bookingRepo := repository.NewPostgresBookingRepository(pool)
-	bookingService := service.NewBookingService(bookingRepo, eventClient, paymentClient, logger, redisClient)
+	bookingService := service.NewBookingService(bookingRepo, eventClient, sagaClient, logger, redisClient)
 
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(middleware.UnaryLoggingInterceptor(logger)),

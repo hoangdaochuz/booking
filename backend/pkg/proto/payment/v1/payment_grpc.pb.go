@@ -20,12 +20,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PaymentService_CreatePayment_FullMethodName       = "/payment.v1.PaymentService/CreatePayment"
-	PaymentService_GetPaymentById_FullMethodName      = "/payment.v1.PaymentService/GetPaymentById"
-	PaymentService_GetPayments_FullMethodName         = "/payment.v1.PaymentService/GetPayments"
-	PaymentService_UpdatePaymentStatus_FullMethodName = "/payment.v1.PaymentService/UpdatePaymentStatus"
-	PaymentService_UpdatePayment_FullMethodName       = "/payment.v1.PaymentService/UpdatePayment"
-	PaymentService_DeletePayment_FullMethodName       = "/payment.v1.PaymentService/DeletePayment"
+	PaymentService_CreatePayment_FullMethodName                        = "/payment.v1.PaymentService/CreatePayment"
+	PaymentService_GetPaymentById_FullMethodName                       = "/payment.v1.PaymentService/GetPaymentById"
+	PaymentService_GetPayments_FullMethodName                          = "/payment.v1.PaymentService/GetPayments"
+	PaymentService_UpdatePaymentStatus_FullMethodName                  = "/payment.v1.PaymentService/UpdatePaymentStatus"
+	PaymentService_UpdatePayment_FullMethodName                        = "/payment.v1.PaymentService/UpdatePayment"
+	PaymentService_DeletePayment_FullMethodName                        = "/payment.v1.PaymentService/DeletePayment"
+	PaymentService_UpdatePaymentStatusByPaymentIntentId_FullMethodName = "/payment.v1.PaymentService/UpdatePaymentStatusByPaymentIntentId"
 )
 
 // PaymentServiceClient is the client API for PaymentService service.
@@ -38,6 +39,7 @@ type PaymentServiceClient interface {
 	UpdatePaymentStatus(ctx context.Context, in *UpdatePaymentStatusRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	UpdatePayment(ctx context.Context, in *UpdatePaymentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	DeletePayment(ctx context.Context, in *DeletePaymentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	UpdatePaymentStatusByPaymentIntentId(ctx context.Context, in *UpdatePaymentStatusByPaymentIntentIdReq, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type paymentServiceClient struct {
@@ -108,6 +110,16 @@ func (c *paymentServiceClient) DeletePayment(ctx context.Context, in *DeletePaym
 	return out, nil
 }
 
+func (c *paymentServiceClient) UpdatePaymentStatusByPaymentIntentId(ctx context.Context, in *UpdatePaymentStatusByPaymentIntentIdReq, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, PaymentService_UpdatePaymentStatusByPaymentIntentId_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PaymentServiceServer is the server API for PaymentService service.
 // All implementations must embed UnimplementedPaymentServiceServer
 // for forward compatibility.
@@ -118,6 +130,7 @@ type PaymentServiceServer interface {
 	UpdatePaymentStatus(context.Context, *UpdatePaymentStatusRequest) (*emptypb.Empty, error)
 	UpdatePayment(context.Context, *UpdatePaymentRequest) (*emptypb.Empty, error)
 	DeletePayment(context.Context, *DeletePaymentRequest) (*emptypb.Empty, error)
+	UpdatePaymentStatusByPaymentIntentId(context.Context, *UpdatePaymentStatusByPaymentIntentIdReq) (*emptypb.Empty, error)
 	mustEmbedUnimplementedPaymentServiceServer()
 }
 
@@ -145,6 +158,9 @@ func (UnimplementedPaymentServiceServer) UpdatePayment(context.Context, *UpdateP
 }
 func (UnimplementedPaymentServiceServer) DeletePayment(context.Context, *DeletePaymentRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeletePayment not implemented")
+}
+func (UnimplementedPaymentServiceServer) UpdatePaymentStatusByPaymentIntentId(context.Context, *UpdatePaymentStatusByPaymentIntentIdReq) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdatePaymentStatusByPaymentIntentId not implemented")
 }
 func (UnimplementedPaymentServiceServer) mustEmbedUnimplementedPaymentServiceServer() {}
 func (UnimplementedPaymentServiceServer) testEmbeddedByValue()                        {}
@@ -275,6 +291,24 @@ func _PaymentService_DeletePayment_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PaymentService_UpdatePaymentStatusByPaymentIntentId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdatePaymentStatusByPaymentIntentIdReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PaymentServiceServer).UpdatePaymentStatusByPaymentIntentId(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PaymentService_UpdatePaymentStatusByPaymentIntentId_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PaymentServiceServer).UpdatePaymentStatusByPaymentIntentId(ctx, req.(*UpdatePaymentStatusByPaymentIntentIdReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PaymentService_ServiceDesc is the grpc.ServiceDesc for PaymentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -305,6 +339,10 @@ var PaymentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeletePayment",
 			Handler:    _PaymentService_DeletePayment_Handler,
+		},
+		{
+			MethodName: "UpdatePaymentStatusByPaymentIntentId",
+			Handler:    _PaymentService_UpdatePaymentStatusByPaymentIntentId_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

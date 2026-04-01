@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/ticketbox/payment/internal/domain"
@@ -43,6 +44,13 @@ func (p *PaymentService) CreatePayment(ctx context.Context, req *domain.CreatePa
 	if err != nil {
 		return nil, err
 	}
+	// Update payment intent
+	updatePayment := req.Payment
+	updatePayment.PaymentIntentId = res.Id
+	err = p.repo.UpdatePayment(ctx, &updatePayment)
+	if err != nil {
+		return nil, fmt.Errorf("fail to update payment after create payment intent: %w", err)
+	}
 
 	return &domain.CreatePaymentResponse{
 		PaymentItentId:            res.Id,
@@ -77,4 +85,8 @@ func (p *PaymentService) SoftDeletePayment(ctx context.Context, ID uuid.UUID) er
 
 func (p *PaymentService) DeletePayment(ctx context.Context, id uuid.UUID) error {
 	return p.repo.DeletePayment(ctx, id)
+}
+
+func (p *PaymentService) UpdatePaymentStatusByPaymentIntentId(ctx context.Context, paymentIntentId string, status domain.PaymentStatus) error {
+	return p.repo.UpdatePaymentStatusByPaymentIntentId(ctx, paymentIntentId, status)
 }

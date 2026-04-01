@@ -21,16 +21,63 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type CompensateOrderSagaRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SagaId        string                 `protobuf:"bytes,1,opt,name=sagaId,proto3" json:"sagaId,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CompensateOrderSagaRequest) Reset() {
+	*x = CompensateOrderSagaRequest{}
+	mi := &file_proto_saga_v1_saga_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompensateOrderSagaRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompensateOrderSagaRequest) ProtoMessage() {}
+
+func (x *CompensateOrderSagaRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_saga_v1_saga_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompensateOrderSagaRequest.ProtoReflect.Descriptor instead.
+func (*CompensateOrderSagaRequest) Descriptor() ([]byte, []int) {
+	return file_proto_saga_v1_saga_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *CompensateOrderSagaRequest) GetSagaId() string {
+	if x != nil {
+		return x.SagaId
+	}
+	return ""
+}
+
 type StartOrderSagaRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	BookingId     string                 `protobuf:"bytes,1,opt,name=bookingId,proto3" json:"bookingId,omitempty"`
+	SeatIds       []string               `protobuf:"bytes,2,rep,name=seatIds,proto3" json:"seatIds,omitempty"`
+	UserId        string                 `protobuf:"bytes,3,opt,name=userId,proto3" json:"userId,omitempty"`
+	TotalCents    int32                  `protobuf:"varint,4,opt,name=totalCents,proto3" json:"totalCents,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StartOrderSagaRequest) Reset() {
 	*x = StartOrderSagaRequest{}
-	mi := &file_proto_saga_v1_saga_proto_msgTypes[0]
+	mi := &file_proto_saga_v1_saga_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42,7 +89,7 @@ func (x *StartOrderSagaRequest) String() string {
 func (*StartOrderSagaRequest) ProtoMessage() {}
 
 func (x *StartOrderSagaRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_saga_v1_saga_proto_msgTypes[0]
+	mi := &file_proto_saga_v1_saga_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -55,7 +102,7 @@ func (x *StartOrderSagaRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartOrderSagaRequest.ProtoReflect.Descriptor instead.
 func (*StartOrderSagaRequest) Descriptor() ([]byte, []int) {
-	return file_proto_saga_v1_saga_proto_rawDescGZIP(), []int{0}
+	return file_proto_saga_v1_saga_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *StartOrderSagaRequest) GetBookingId() string {
@@ -65,29 +112,52 @@ func (x *StartOrderSagaRequest) GetBookingId() string {
 	return ""
 }
 
-type StartOrderSagaResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+func (x *StartOrderSagaRequest) GetSeatIds() []string {
+	if x != nil {
+		return x.SeatIds
+	}
+	return nil
 }
 
-func (x *StartOrderSagaResponse) Reset() {
-	*x = StartOrderSagaResponse{}
-	mi := &file_proto_saga_v1_saga_proto_msgTypes[1]
+func (x *StartOrderSagaRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *StartOrderSagaRequest) GetTotalCents() int32 {
+	if x != nil {
+		return x.TotalCents
+	}
+	return 0
+}
+
+type OrderSagaResponse struct {
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	Status                    string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Message                   string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	PaymentIntentClientSecret string                 `protobuf:"bytes,3,opt,name=paymentIntentClientSecret,proto3" json:"paymentIntentClientSecret,omitempty"`
+	SagaId                    string                 `protobuf:"bytes,4,opt,name=sagaId,proto3" json:"sagaId,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *OrderSagaResponse) Reset() {
+	*x = OrderSagaResponse{}
+	mi := &file_proto_saga_v1_saga_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *StartOrderSagaResponse) String() string {
+func (x *OrderSagaResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*StartOrderSagaResponse) ProtoMessage() {}
+func (*OrderSagaResponse) ProtoMessage() {}
 
-func (x *StartOrderSagaResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_saga_v1_saga_proto_msgTypes[1]
+func (x *OrderSagaResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_saga_v1_saga_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -98,21 +168,35 @@ func (x *StartOrderSagaResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use StartOrderSagaResponse.ProtoReflect.Descriptor instead.
-func (*StartOrderSagaResponse) Descriptor() ([]byte, []int) {
-	return file_proto_saga_v1_saga_proto_rawDescGZIP(), []int{1}
+// Deprecated: Use OrderSagaResponse.ProtoReflect.Descriptor instead.
+func (*OrderSagaResponse) Descriptor() ([]byte, []int) {
+	return file_proto_saga_v1_saga_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *StartOrderSagaResponse) GetStatus() string {
+func (x *OrderSagaResponse) GetStatus() string {
 	if x != nil {
 		return x.Status
 	}
 	return ""
 }
 
-func (x *StartOrderSagaResponse) GetMessage() string {
+func (x *OrderSagaResponse) GetMessage() string {
 	if x != nil {
 		return x.Message
+	}
+	return ""
+}
+
+func (x *OrderSagaResponse) GetPaymentIntentClientSecret() string {
+	if x != nil {
+		return x.PaymentIntentClientSecret
+	}
+	return ""
+}
+
+func (x *OrderSagaResponse) GetSagaId() string {
+	if x != nil {
+		return x.SagaId
 	}
 	return ""
 }
@@ -121,14 +205,24 @@ var File_proto_saga_v1_saga_proto protoreflect.FileDescriptor
 
 const file_proto_saga_v1_saga_proto_rawDesc = "" +
 	"\n" +
-	"\x18proto/saga/v1/saga.proto\x12\asaga.v1\"5\n" +
+	"\x18proto/saga/v1/saga.proto\x12\asaga.v1\"4\n" +
+	"\x1aCompensateOrderSagaRequest\x12\x16\n" +
+	"\x06sagaId\x18\x01 \x01(\tR\x06sagaId\"\x87\x01\n" +
 	"\x15StartOrderSagaRequest\x12\x1c\n" +
-	"\tbookingId\x18\x01 \x01(\tR\tbookingId\"J\n" +
-	"\x16StartOrderSagaResponse\x12\x16\n" +
+	"\tbookingId\x18\x01 \x01(\tR\tbookingId\x12\x18\n" +
+	"\aseatIds\x18\x02 \x03(\tR\aseatIds\x12\x16\n" +
+	"\x06userId\x18\x03 \x01(\tR\x06userId\x12\x1e\n" +
+	"\n" +
+	"totalCents\x18\x04 \x01(\x05R\n" +
+	"totalCents\"\x9b\x01\n" +
+	"\x11OrderSagaResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage2l\n" +
-	"\x17SagaOrchestratorService\x12Q\n" +
-	"\x0eStartOrderSaga\x12\x1e.saga.v1.StartOrderSagaRequest\x1a\x1f.saga.v1.StartOrderSagaResponseB/Z-github.com/ticketbox/pkg/proto/saga/v1;sagav1b\x06proto3"
+	"\amessage\x18\x02 \x01(\tR\amessage\x12<\n" +
+	"\x19paymentIntentClientSecret\x18\x03 \x01(\tR\x19paymentIntentClientSecret\x12\x16\n" +
+	"\x06sagaId\x18\x04 \x01(\tR\x06sagaId2\xbf\x01\n" +
+	"\x17SagaOrchestratorService\x12L\n" +
+	"\x0eStartOrderSaga\x12\x1e.saga.v1.StartOrderSagaRequest\x1a\x1a.saga.v1.OrderSagaResponse\x12V\n" +
+	"\x13CompensateOrderSaga\x12#.saga.v1.CompensateOrderSagaRequest\x1a\x1a.saga.v1.OrderSagaResponseB/Z-github.com/ticketbox/pkg/proto/saga/v1;sagav1b\x06proto3"
 
 var (
 	file_proto_saga_v1_saga_proto_rawDescOnce sync.Once
@@ -142,16 +236,19 @@ func file_proto_saga_v1_saga_proto_rawDescGZIP() []byte {
 	return file_proto_saga_v1_saga_proto_rawDescData
 }
 
-var file_proto_saga_v1_saga_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_proto_saga_v1_saga_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_proto_saga_v1_saga_proto_goTypes = []any{
-	(*StartOrderSagaRequest)(nil),  // 0: saga.v1.StartOrderSagaRequest
-	(*StartOrderSagaResponse)(nil), // 1: saga.v1.StartOrderSagaResponse
+	(*CompensateOrderSagaRequest)(nil), // 0: saga.v1.CompensateOrderSagaRequest
+	(*StartOrderSagaRequest)(nil),      // 1: saga.v1.StartOrderSagaRequest
+	(*OrderSagaResponse)(nil),          // 2: saga.v1.OrderSagaResponse
 }
 var file_proto_saga_v1_saga_proto_depIdxs = []int32{
-	0, // 0: saga.v1.SagaOrchestratorService.StartOrderSaga:input_type -> saga.v1.StartOrderSagaRequest
-	1, // 1: saga.v1.SagaOrchestratorService.StartOrderSaga:output_type -> saga.v1.StartOrderSagaResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
+	1, // 0: saga.v1.SagaOrchestratorService.StartOrderSaga:input_type -> saga.v1.StartOrderSagaRequest
+	0, // 1: saga.v1.SagaOrchestratorService.CompensateOrderSaga:input_type -> saga.v1.CompensateOrderSagaRequest
+	2, // 2: saga.v1.SagaOrchestratorService.StartOrderSaga:output_type -> saga.v1.OrderSagaResponse
+	2, // 3: saga.v1.SagaOrchestratorService.CompensateOrderSaga:output_type -> saga.v1.OrderSagaResponse
+	2, // [2:4] is the sub-list for method output_type
+	0, // [0:2] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -168,7 +265,7 @@ func file_proto_saga_v1_saga_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_saga_v1_saga_proto_rawDesc), len(file_proto_saga_v1_saga_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

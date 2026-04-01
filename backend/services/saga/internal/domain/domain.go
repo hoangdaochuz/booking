@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -25,6 +26,7 @@ type Saga struct {
 	Steps            []SagaStep
 	Status           SagaStatus
 	CurrentStepIndex int
+	PaymentIntentId  string
 }
 
 type SagaStepStatus string
@@ -38,15 +40,28 @@ var (
 	SAGA_STEP_FAILED       SagaStepStatus = "FAILED"
 )
 
+type SagaStepFunc func(ctx context.Context, req SagaStepRequest) (SagaStepResponse, error)
+
+type SagaStepRequest interface {
+	String() string
+}
+
+type SagaStepResponse interface {
+	String() string
+}
+
 type SagaStep struct {
 	ID                    uuid.UUID
 	SagaID                uuid.UUID
 	Name                  string
+	ExecuteReq            SagaStepRequest
+	CompensateReq         SagaStepRequest
 	Execute               func(ctx context.Context) error
 	Compensate            func(ctx context.Context) error
-	ExecutedAt            int64
-	CompenstatedAt        int64
+	ExecutedAt            time.Time
+	CompenstatedAt        time.Time
 	Status                SagaStepStatus
 	Order                 int16
 	ShouldPauseForPayment bool
+	// SagaPaymentRes        *paymentv1.CreatePaymentResponse
 }

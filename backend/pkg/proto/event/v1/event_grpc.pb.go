@@ -20,16 +20,17 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	EventService_CreateEvent_FullMethodName              = "/event.v1.EventService/CreateEvent"
-	EventService_GetEvent_FullMethodName                 = "/event.v1.EventService/GetEvent"
-	EventService_ListEvents_FullMethodName               = "/event.v1.EventService/ListEvents"
-	EventService_UpdateEvent_FullMethodName              = "/event.v1.EventService/UpdateEvent"
-	EventService_DeleteEvent_FullMethodName              = "/event.v1.EventService/DeleteEvent"
-	EventService_GetTicketAvailability_FullMethodName    = "/event.v1.EventService/GetTicketAvailability"
-	EventService_UpdateTicketAvailability_FullMethodName = "/event.v1.EventService/UpdateTicketAvailability"
-	EventService_GetSeats_FullMethodName                 = "/event.v1.EventService/GetSeats"
-	EventService_UpdateSeatStatus_FullMethodName         = "/event.v1.EventService/UpdateSeatStatus"
-	EventService_UpdateBatchSeatStatus_FullMethodName    = "/event.v1.EventService/UpdateBatchSeatStatus"
+	EventService_CreateEvent_FullMethodName                   = "/event.v1.EventService/CreateEvent"
+	EventService_GetEvent_FullMethodName                      = "/event.v1.EventService/GetEvent"
+	EventService_ListEvents_FullMethodName                    = "/event.v1.EventService/ListEvents"
+	EventService_UpdateEvent_FullMethodName                   = "/event.v1.EventService/UpdateEvent"
+	EventService_DeleteEvent_FullMethodName                   = "/event.v1.EventService/DeleteEvent"
+	EventService_GetTicketAvailability_FullMethodName         = "/event.v1.EventService/GetTicketAvailability"
+	EventService_UpdateTicketAvailability_FullMethodName      = "/event.v1.EventService/UpdateTicketAvailability"
+	EventService_UpdateBatchTicketAvailability_FullMethodName = "/event.v1.EventService/UpdateBatchTicketAvailability"
+	EventService_GetSeats_FullMethodName                      = "/event.v1.EventService/GetSeats"
+	EventService_UpdateSeatStatus_FullMethodName              = "/event.v1.EventService/UpdateSeatStatus"
+	EventService_UpdateBatchSeatStatus_FullMethodName         = "/event.v1.EventService/UpdateBatchSeatStatus"
 )
 
 // EventServiceClient is the client API for EventService service.
@@ -43,6 +44,7 @@ type EventServiceClient interface {
 	DeleteEvent(ctx context.Context, in *DeleteEventRequest, opts ...grpc.CallOption) (*DeleteEventResponse, error)
 	GetTicketAvailability(ctx context.Context, in *GetTicketAvailabilityRequest, opts ...grpc.CallOption) (*TicketAvailabilityResponse, error)
 	UpdateTicketAvailability(ctx context.Context, in *UpdateTicketAvailabilityRequest, opts ...grpc.CallOption) (*TicketTier, error)
+	UpdateBatchTicketAvailability(ctx context.Context, in *UpdateTicketAvailabilityRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	GetSeats(ctx context.Context, in *GetSeatsRequest, opts ...grpc.CallOption) (*GetSeatsResponse, error)
 	UpdateSeatStatus(ctx context.Context, in *UpdateSeatStatusRequest, opts ...grpc.CallOption) (*UpdateSeatStatusResponse, error)
 	UpdateBatchSeatStatus(ctx context.Context, in *UpdateBatchSeatStatusRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
@@ -126,6 +128,16 @@ func (c *eventServiceClient) UpdateTicketAvailability(ctx context.Context, in *U
 	return out, nil
 }
 
+func (c *eventServiceClient) UpdateBatchTicketAvailability(ctx context.Context, in *UpdateTicketAvailabilityRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, EventService_UpdateBatchTicketAvailability_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *eventServiceClient) GetSeats(ctx context.Context, in *GetSeatsRequest, opts ...grpc.CallOption) (*GetSeatsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetSeatsResponse)
@@ -167,6 +179,7 @@ type EventServiceServer interface {
 	DeleteEvent(context.Context, *DeleteEventRequest) (*DeleteEventResponse, error)
 	GetTicketAvailability(context.Context, *GetTicketAvailabilityRequest) (*TicketAvailabilityResponse, error)
 	UpdateTicketAvailability(context.Context, *UpdateTicketAvailabilityRequest) (*TicketTier, error)
+	UpdateBatchTicketAvailability(context.Context, *UpdateTicketAvailabilityRequest) (*emptypb.Empty, error)
 	GetSeats(context.Context, *GetSeatsRequest) (*GetSeatsResponse, error)
 	UpdateSeatStatus(context.Context, *UpdateSeatStatusRequest) (*UpdateSeatStatusResponse, error)
 	UpdateBatchSeatStatus(context.Context, *UpdateBatchSeatStatusRequest) (*emptypb.Empty, error)
@@ -200,6 +213,9 @@ func (UnimplementedEventServiceServer) GetTicketAvailability(context.Context, *G
 }
 func (UnimplementedEventServiceServer) UpdateTicketAvailability(context.Context, *UpdateTicketAvailabilityRequest) (*TicketTier, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateTicketAvailability not implemented")
+}
+func (UnimplementedEventServiceServer) UpdateBatchTicketAvailability(context.Context, *UpdateTicketAvailabilityRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateBatchTicketAvailability not implemented")
 }
 func (UnimplementedEventServiceServer) GetSeats(context.Context, *GetSeatsRequest) (*GetSeatsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetSeats not implemented")
@@ -357,6 +373,24 @@ func _EventService_UpdateTicketAvailability_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _EventService_UpdateBatchTicketAvailability_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateTicketAvailabilityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).UpdateBatchTicketAvailability(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_UpdateBatchTicketAvailability_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).UpdateBatchTicketAvailability(ctx, req.(*UpdateTicketAvailabilityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _EventService_GetSeats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetSeatsRequest)
 	if err := dec(in); err != nil {
@@ -445,6 +479,10 @@ var EventService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateTicketAvailability",
 			Handler:    _EventService_UpdateTicketAvailability_Handler,
+		},
+		{
+			MethodName: "UpdateBatchTicketAvailability",
+			Handler:    _EventService_UpdateBatchTicketAvailability_Handler,
 		},
 		{
 			MethodName: "GetSeats",

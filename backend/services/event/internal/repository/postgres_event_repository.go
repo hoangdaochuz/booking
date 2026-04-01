@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -266,6 +267,12 @@ func (r *PostgresTicketTierRepository) UpdateAvailabilityPessimistic(ctx context
 	}
 
 	return tier, tx.Commit(ctx)
+}
+
+func (r *PostgresTicketTierRepository) UpdateBatchTicketAvailability(ctx context.Context, req *UpdateBatchTicketAvailabilityRequest) error {
+	// TODO: Implement batch update with proper locking and error handling
+	log.Fatal("UpdateBatchTicketAvailability not implemented yet")
+	return nil
 }
 
 // Naive -- no locking at all (WILL cause double booking under load!)

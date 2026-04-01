@@ -1417,7 +1417,7 @@ const file_proto_event_v1_event_proto_rawDesc = "" +
 	"\n" +
 	"booking_id\x18\x03 \x01(\tR\tbookingId\">\n" +
 	"\x18UpdateSeatStatusResponse\x12\"\n" +
-	"\x04seat\x18\x01 \x01(\v2\x0e.event.v1.SeatR\x04seat2\xa4\x06\n" +
+	"\x04seat\x18\x01 \x01(\v2\x0e.event.v1.SeatR\x04seat2\x88\a\n" +
 	"\fEventService\x12B\n" +
 	"\vCreateEvent\x12\x1c.event.v1.CreateEventRequest\x1a\x15.event.v1.EventDetail\x12<\n" +
 	"\bGetEvent\x12\x19.event.v1.GetEventRequest\x1a\x15.event.v1.EventDetail\x12G\n" +
@@ -1426,7 +1426,8 @@ const file_proto_event_v1_event_proto_rawDesc = "" +
 	"\vUpdateEvent\x12\x1c.event.v1.UpdateEventRequest\x1a\x15.event.v1.EventDetail\x12J\n" +
 	"\vDeleteEvent\x12\x1c.event.v1.DeleteEventRequest\x1a\x1d.event.v1.DeleteEventResponse\x12e\n" +
 	"\x15GetTicketAvailability\x12&.event.v1.GetTicketAvailabilityRequest\x1a$.event.v1.TicketAvailabilityResponse\x12[\n" +
-	"\x18UpdateTicketAvailability\x12).event.v1.UpdateTicketAvailabilityRequest\x1a\x14.event.v1.TicketTier\x12A\n" +
+	"\x18UpdateTicketAvailability\x12).event.v1.UpdateTicketAvailabilityRequest\x1a\x14.event.v1.TicketTier\x12b\n" +
+	"\x1dUpdateBatchTicketAvailability\x12).event.v1.UpdateTicketAvailabilityRequest\x1a\x16.google.protobuf.Empty\x12A\n" +
 	"\bGetSeats\x12\x19.event.v1.GetSeatsRequest\x1a\x1a.event.v1.GetSeatsResponse\x12Y\n" +
 	"\x10UpdateSeatStatus\x12!.event.v1.UpdateSeatStatusRequest\x1a\".event.v1.UpdateSeatStatusResponse\x12W\n" +
 	"\x15UpdateBatchSeatStatus\x12&.event.v1.UpdateBatchSeatStatusRequest\x1a\x16.google.protobuf.EmptyB1Z/github.com/ticketbox/pkg/proto/event/v1;eventv1b\x06proto3"
@@ -1486,21 +1487,23 @@ var file_proto_event_v1_event_proto_depIdxs = []int32{
 	6,  // 15: event.v1.EventService.DeleteEvent:input_type -> event.v1.DeleteEventRequest
 	10, // 16: event.v1.EventService.GetTicketAvailability:input_type -> event.v1.GetTicketAvailabilityRequest
 	12, // 17: event.v1.EventService.UpdateTicketAvailability:input_type -> event.v1.UpdateTicketAvailabilityRequest
-	14, // 18: event.v1.EventService.GetSeats:input_type -> event.v1.GetSeatsRequest
-	16, // 19: event.v1.EventService.UpdateSeatStatus:input_type -> event.v1.UpdateSeatStatusRequest
-	17, // 20: event.v1.EventService.UpdateBatchSeatStatus:input_type -> event.v1.UpdateBatchSeatStatusRequest
-	8,  // 21: event.v1.EventService.CreateEvent:output_type -> event.v1.EventDetail
-	8,  // 22: event.v1.EventService.GetEvent:output_type -> event.v1.EventDetail
-	4,  // 23: event.v1.EventService.ListEvents:output_type -> event.v1.ListEventsResponse
-	8,  // 24: event.v1.EventService.UpdateEvent:output_type -> event.v1.EventDetail
-	7,  // 25: event.v1.EventService.DeleteEvent:output_type -> event.v1.DeleteEventResponse
-	11, // 26: event.v1.EventService.GetTicketAvailability:output_type -> event.v1.TicketAvailabilityResponse
-	9,  // 27: event.v1.EventService.UpdateTicketAvailability:output_type -> event.v1.TicketTier
-	15, // 28: event.v1.EventService.GetSeats:output_type -> event.v1.GetSeatsResponse
-	18, // 29: event.v1.EventService.UpdateSeatStatus:output_type -> event.v1.UpdateSeatStatusResponse
-	20, // 30: event.v1.EventService.UpdateBatchSeatStatus:output_type -> google.protobuf.Empty
-	21, // [21:31] is the sub-list for method output_type
-	11, // [11:21] is the sub-list for method input_type
+	12, // 18: event.v1.EventService.UpdateBatchTicketAvailability:input_type -> event.v1.UpdateTicketAvailabilityRequest
+	14, // 19: event.v1.EventService.GetSeats:input_type -> event.v1.GetSeatsRequest
+	16, // 20: event.v1.EventService.UpdateSeatStatus:input_type -> event.v1.UpdateSeatStatusRequest
+	17, // 21: event.v1.EventService.UpdateBatchSeatStatus:input_type -> event.v1.UpdateBatchSeatStatusRequest
+	8,  // 22: event.v1.EventService.CreateEvent:output_type -> event.v1.EventDetail
+	8,  // 23: event.v1.EventService.GetEvent:output_type -> event.v1.EventDetail
+	4,  // 24: event.v1.EventService.ListEvents:output_type -> event.v1.ListEventsResponse
+	8,  // 25: event.v1.EventService.UpdateEvent:output_type -> event.v1.EventDetail
+	7,  // 26: event.v1.EventService.DeleteEvent:output_type -> event.v1.DeleteEventResponse
+	11, // 27: event.v1.EventService.GetTicketAvailability:output_type -> event.v1.TicketAvailabilityResponse
+	9,  // 28: event.v1.EventService.UpdateTicketAvailability:output_type -> event.v1.TicketTier
+	20, // 29: event.v1.EventService.UpdateBatchTicketAvailability:output_type -> google.protobuf.Empty
+	15, // 30: event.v1.EventService.GetSeats:output_type -> event.v1.GetSeatsResponse
+	18, // 31: event.v1.EventService.UpdateSeatStatus:output_type -> event.v1.UpdateSeatStatusResponse
+	20, // 32: event.v1.EventService.UpdateBatchSeatStatus:output_type -> google.protobuf.Empty
+	22, // [22:33] is the sub-list for method output_type
+	11, // [11:22] is the sub-list for method input_type
 	11, // [11:11] is the sub-list for extension type_name
 	11, // [11:11] is the sub-list for extension extendee
 	0,  // [0:11] is the sub-list for field type_name

@@ -11,7 +11,11 @@ import (
 	"github.com/ticketbox/pkg/config"
 	"github.com/ticketbox/pkg/database"
 	"github.com/ticketbox/pkg/middleware"
+	bookingv1 "github.com/ticketbox/pkg/proto/booking/v1"
+	eventv1 "github.com/ticketbox/pkg/proto/event/v1"
+	paymentv1 "github.com/ticketbox/pkg/proto/payment/v1"
 	sagav1 "github.com/ticketbox/pkg/proto/saga/v1"
+	sagapkg "github.com/ticketbox/pkg/saga"
 	saga_grpc "github.com/ticketbox/saga/internal/grpc"
 	"github.com/ticketbox/saga/internal/kafka"
 	"github.com/ticketbox/saga/internal/registry"
@@ -19,17 +23,12 @@ import (
 	"github.com/ticketbox/saga/internal/service"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 )
 
 func main() {
-	_ = registry.NewSagaStepRegistry()
-	// sagaStepRegistry.Register("PaymentCreate", registry.SagaStepProcessor{
-	// 	Execute: paymentClient.CreatePayment,
-	// 	Compensate: paymentClient.Refund,
-	// })
-	// sagaStepRegistry.Register((""))
-	// ....
+
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
 
@@ -43,8 +42,49 @@ func main() {
 	if err != nil {
 		logger.Fatal("[SAGA Service]: Cannot create postgres poll", zap.Error(err))
 	}
+	// Connect to Event Service via gRPC
+	eventConn, err := grpc.NewClient(cfg.EventServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		logger.Fatal("Failed to connect to event service", zap.Error(err))
+	}
+	defer eventConn.Close()
+	eventClient := eventv1.NewEventServiceClient(eventConn)
+
+	paymentConn, err := grpc.NewClient(cfg.PaymentServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		logger.Fatal("Failed to connect to payment service", zap.Error(err))
+	}
+	defer paymentConn.Close()
+	paymentClient := paymentv1.NewPaymentServiceClient(paymentConn)
+
+	bookingConn, err := grpc.NewClient(cfg.BookingServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		logger.Fatal("Failed to connect to booking service", zap.Error(err))
+	}
+	bookingClient := bookingv1.NewBookingServiceClient(bookingConn)
+
 	sagaRepository := repository.NewSagaRepository(pool)
-	sagaService := service.NewSagaService(logger, sagaRepository)
+	sagaStepRegistry := registry.NewSagaStepRegistry()
+	sagaService := service.NewSagaService(logger, sagaRepository, sagaStepRegistry, bookingClient, paymentClient, eventClient)
+	sagaStepRegistry.Register(string(sagapkg.RESERVED_SEAT_STEP), registry.SagaStepProcessor{
+		Execute:    sagaService.UpdateBatchSeatStatus,
+		Compensate: sagaService.UpdateBatchSeatStatus,
+	})
+	sagaStepRegistry.Register(string(sagapkg.CREATE_PAYMENT_INTENT_STEP), registry.SagaStepProcessor{
+		Execute:    sagaService.CreatePayment,
+		Compensate: sagaService.RefundPayment,
+	})
+
+	sagaStepRegistry.Register(string(sagapkg.UPDATE_SEAT_BOOKED), registry.SagaStepProcessor{
+		Execute:    sagaService.UpdateBatchSeatStatus,
+		Compensate: sagaService.UpdateBatchSeatStatus,
+	})
+
+	sagaStepRegistry.Register(string(sagapkg.UPDATE_BOOKING_STATUS_CONFIRMED), registry.SagaStepProcessor{
+		Execute:    sagaService.UpdateBookingStatus,
+		Compensate: sagaService.UpdateBookingStatus,
+	})
+
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(middleware.UnaryLoggingInterceptor(logger)))
 	sagaGrpcServer := saga_grpc.NewSagaOrchestratorServer(sagaService, logger)
 	sagav1.RegisterSagaOrchestratorServiceServer(grpcServer, sagaGrpcServer)

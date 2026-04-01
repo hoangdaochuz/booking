@@ -16,6 +16,7 @@ service EventService {
     rpc DeleteEvent(DeleteEventRequest) returns (DeleteEventResponse);
     rpc GetTicketAvailability(GetTicketAvailabilityRequest) returns (TicketAvailabilityResponse);
     rpc UpdateTicketAvailability(UpdateTicketAvailabilityRequest) returns (TicketTier);
+    rpc UpdateBatchTicketAvailability(UpdateTicketAvailabilityRequest) returns (google.protobuf.Empty);
     rpc GetSeats(GetSeatsRequest) returns (GetSeatsResponse);
     rpc UpdateSeatStatus(UpdateSeatStatusRequest) returns (UpdateSeatStatusResponse);
     rpc UpdateBatchSeatStatus(UpdateBatchSeatStatusRequest) returns (google.protobuf.Empty);

@@ -19,14 +19,16 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SagaOrchestratorService_StartOrderSaga_FullMethodName = "/saga.v1.SagaOrchestratorService/StartOrderSaga"
+	SagaOrchestratorService_StartOrderSaga_FullMethodName      = "/saga.v1.SagaOrchestratorService/StartOrderSaga"
+	SagaOrchestratorService_CompensateOrderSaga_FullMethodName = "/saga.v1.SagaOrchestratorService/CompensateOrderSaga"
 )
 
 // SagaOrchestratorServiceClient is the client API for SagaOrchestratorService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type SagaOrchestratorServiceClient interface {
-	StartOrderSaga(ctx context.Context, in *StartOrderSagaRequest, opts ...grpc.CallOption) (*StartOrderSagaResponse, error)
+	StartOrderSaga(ctx context.Context, in *StartOrderSagaRequest, opts ...grpc.CallOption) (*OrderSagaResponse, error)
+	CompensateOrderSaga(ctx context.Context, in *CompensateOrderSagaRequest, opts ...grpc.CallOption) (*OrderSagaResponse, error)
 }
 
 type sagaOrchestratorServiceClient struct {
@@ -37,10 +39,20 @@ func NewSagaOrchestratorServiceClient(cc grpc.ClientConnInterface) SagaOrchestra
 	return &sagaOrchestratorServiceClient{cc}
 }
 
-func (c *sagaOrchestratorServiceClient) StartOrderSaga(ctx context.Context, in *StartOrderSagaRequest, opts ...grpc.CallOption) (*StartOrderSagaResponse, error) {
+func (c *sagaOrchestratorServiceClient) StartOrderSaga(ctx context.Context, in *StartOrderSagaRequest, opts ...grpc.CallOption) (*OrderSagaResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(StartOrderSagaResponse)
+	out := new(OrderSagaResponse)
 	err := c.cc.Invoke(ctx, SagaOrchestratorService_StartOrderSaga_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sagaOrchestratorServiceClient) CompensateOrderSaga(ctx context.Context, in *CompensateOrderSagaRequest, opts ...grpc.CallOption) (*OrderSagaResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OrderSagaResponse)
+	err := c.cc.Invoke(ctx, SagaOrchestratorService_CompensateOrderSaga_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +63,8 @@ func (c *sagaOrchestratorServiceClient) StartOrderSaga(ctx context.Context, in *
 // All implementations must embed UnimplementedSagaOrchestratorServiceServer
 // for forward compatibility.
 type SagaOrchestratorServiceServer interface {
-	StartOrderSaga(context.Context, *StartOrderSagaRequest) (*StartOrderSagaResponse, error)
+	StartOrderSaga(context.Context, *StartOrderSagaRequest) (*OrderSagaResponse, error)
+	CompensateOrderSaga(context.Context, *CompensateOrderSagaRequest) (*OrderSagaResponse, error)
 	mustEmbedUnimplementedSagaOrchestratorServiceServer()
 }
 
@@ -62,8 +75,11 @@ type SagaOrchestratorServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedSagaOrchestratorServiceServer struct{}
 
-func (UnimplementedSagaOrchestratorServiceServer) StartOrderSaga(context.Context, *StartOrderSagaRequest) (*StartOrderSagaResponse, error) {
+func (UnimplementedSagaOrchestratorServiceServer) StartOrderSaga(context.Context, *StartOrderSagaRequest) (*OrderSagaResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method StartOrderSaga not implemented")
+}
+func (UnimplementedSagaOrchestratorServiceServer) CompensateOrderSaga(context.Context, *CompensateOrderSagaRequest) (*OrderSagaResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CompensateOrderSaga not implemented")
 }
 func (UnimplementedSagaOrchestratorServiceServer) mustEmbedUnimplementedSagaOrchestratorServiceServer() {
 }
@@ -105,6 +121,24 @@ func _SagaOrchestratorService_StartOrderSaga_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SagaOrchestratorService_CompensateOrderSaga_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CompensateOrderSagaRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SagaOrchestratorServiceServer).CompensateOrderSaga(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SagaOrchestratorService_CompensateOrderSaga_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SagaOrchestratorServiceServer).CompensateOrderSaga(ctx, req.(*CompensateOrderSagaRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SagaOrchestratorService_ServiceDesc is the grpc.ServiceDesc for SagaOrchestratorService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -115,6 +149,10 @@ var SagaOrchestratorService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "StartOrderSaga",
 			Handler:    _SagaOrchestratorService_StartOrderSaga_Handler,
+		},
+		{
+			MethodName: "CompensateOrderSaga",
+			Handler:    _SagaOrchestratorService_CompensateOrderSaga_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
