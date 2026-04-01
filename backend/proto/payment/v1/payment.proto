@@ -13,6 +13,7 @@ service PaymentService {
     rpc UpdatePaymentStatus(UpdatePaymentStatusRequest) returns (google.protobuf.Empty);
     rpc UpdatePayment(UpdatePaymentRequest) returns (google.protobuf.Empty);
     rpc DeletePayment(DeletePaymentRequest) returns (google.protobuf.Empty);
+    rpc UpdatePaymentStatusByPaymentIntentId(UpdatePaymentStatusByPaymentIntentIdReq) returns (google.protobuf.Empty);
 }
 
 message GetPaymentByIdReq {
@@ -65,6 +66,11 @@ message PaymentList {
 
 message UpdatePaymentStatusRequest {
   string id = 1;
+  string status = 2;
+}
+
+message UpdatePaymentStatusByPaymentIntentIdReq {
+  string paymentIntentId = 1;
   string status = 2;
 }
 

@@ -5,12 +5,15 @@ package booking.v1;
 option go_package = "github.com/ticketbox/pkg/proto/booking/v1;bookingv1";
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
 
 service BookingService {
     rpc CreateBooking(CreateBookingRequest) returns (BookingDetail);
     rpc GetBooking(GetBookingRequest) returns (BookingDetail);
     rpc ListUserBookings(ListUserBookingsRequest) returns (ListUserBookingsResponse);
     rpc CancelBooking(CancelBookingRequest) returns (BookingDetail);
+    rpc UpdateBookingStatusById(UpdateBookingStatusByIdReq) returns (google.protobuf.Empty);
 }
 
 message CreateBookingRequest {
@@ -64,4 +67,9 @@ message BookingItem {
     int32 quantity = 4;
     int64 unit_price_cents = 5;
     repeated string seat_ids = 6; // Booked seat IDs for this item
+}
+
+message UpdateBookingStatusByIdReq {
+  string id = 1;
+  string status = 2;
 }

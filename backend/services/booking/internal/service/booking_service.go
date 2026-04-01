@@ -242,3 +242,7 @@ func (s *BookingService) GetBooking(ctx context.Context, bookingID uuid.UUID) (*
 func (s *BookingService) ListUserBookings(ctx context.Context, userID uuid.UUID, page, pageSize int) ([]*domain.Booking, int, error) {
 	return s.bookingRepo.ListByUserID(ctx, userID, page, pageSize)
 }
+
+func (s *BookingService) UpdateBookingStatusById(ctx context.Context, bookingId uuid.UUID, status domain.BookingStatus) error {
+	return s.bookingRepo.UpdateStatus(ctx, bookingId, status)
+}

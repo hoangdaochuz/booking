@@ -98,6 +98,15 @@ func (p *PostgresPaymentRepository) UpdatePaymentStatus(ctx context.Context, ID 
 	return err
 }
 
+func (p *PostgresPaymentRepository) UpdatePaymentStatusByPaymentIntentId(ctx context.Context, paymentIntentId string, status domain.PaymentStatus) error {
+	query := `UPDATE payments
+			  SET status = $1
+			  WHERE payment_intent_id = $2;`
+
+	_, err := p.pool.Exec(ctx, query, string(status), paymentIntentId)
+	return err
+}
+
 func (p *PostgresPaymentRepository) UpdatePayment(ctx context.Context, payment *domain.Payment) error {
 
 	bookingId := uuid.UUID{}

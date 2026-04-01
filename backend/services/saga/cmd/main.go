@@ -15,6 +15,7 @@ import (
 	eventv1 "github.com/ticketbox/pkg/proto/event/v1"
 	paymentv1 "github.com/ticketbox/pkg/proto/payment/v1"
 	sagav1 "github.com/ticketbox/pkg/proto/saga/v1"
+	sagapkg "github.com/ticketbox/pkg/saga"
 	saga_grpc "github.com/ticketbox/saga/internal/grpc"
 	"github.com/ticketbox/saga/internal/kafka"
 	"github.com/ticketbox/saga/internal/registry"
@@ -27,7 +28,7 @@ import (
 )
 
 func main() {
-	sagaStepRegistry := registry.NewSagaStepRegistry()
+
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
 
@@ -63,11 +64,26 @@ func main() {
 	bookingClient := bookingv1.NewBookingServiceClient(bookingConn)
 
 	sagaRepository := repository.NewSagaRepository(pool)
+	sagaStepRegistry := registry.NewSagaStepRegistry()
 	sagaService := service.NewSagaService(logger, sagaRepository, sagaStepRegistry, bookingClient, paymentClient, eventClient)
-	// err = sagaService.RegisterSagaSteps(ctx)
-	// if err != nil {
-	// 	logger.Fatal("Fail to register saga step", zap.Error(err))
-	// }
+	sagaStepRegistry.Register(string(sagapkg.RESERVED_SEAT_STEP), registry.SagaStepProcessor{
+		Execute:    sagaService.UpdateBatchSeatStatus,
+		Compensate: sagaService.UpdateBatchSeatStatus,
+	})
+	sagaStepRegistry.Register(string(sagapkg.CREATE_PAYMENT_INTENT_STEP), registry.SagaStepProcessor{
+		Execute:    sagaService.CreatePayment,
+		Compensate: sagaService.RefundPayment,
+	})
+
+	sagaStepRegistry.Register(string(sagapkg.UPDATE_SEAT_BOOKED), registry.SagaStepProcessor{
+		Execute:    sagaService.UpdateBatchSeatStatus,
+		Compensate: sagaService.UpdateBatchSeatStatus,
+	})
+
+	sagaStepRegistry.Register(string(sagapkg.UPDATE_BOOKING_STATUS_CONFIRMED), registry.SagaStepProcessor{
+		Execute:    sagaService.UpdateBookingStatus,
+		Compensate: sagaService.UpdateBookingStatus,
+	})
 
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(middleware.UnaryLoggingInterceptor(logger)))
 	sagaGrpcServer := saga_grpc.NewSagaOrchestratorServer(sagaService, logger)

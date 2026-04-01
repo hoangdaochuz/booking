@@ -323,3 +323,7 @@ func toSeat(s *domain.Seat) *eventv1.Seat {
 
 	return seat
 }
+
+func (s *EventServer) UpdateBatchTicketAvailability(ctx context.Context, req *eventv1.UpdateTicketAvailabilityRequest) (*emptypb.Empty, error) {
+	return nil, nil
+}

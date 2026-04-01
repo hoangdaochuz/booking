@@ -3,11 +3,13 @@ package grpc
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/ticketbox/booking/internal/domain"
@@ -183,4 +185,13 @@ func toBookingDetailV2(b *service.CreateBookingResponse) *bookingv1.BookingDetai
 		})
 	}
 	return detail
+}
+
+func (s *BookingServer) UpdateBookingStatusById(ctx context.Context, req *bookingv1.UpdateBookingStatusByIdReq) (*emptypb.Empty, error) {
+	bookingId, err := uuid.Parse(req.Id)
+	if err != nil {
+		return nil, fmt.Errorf("booking id invalid: %w", err)
+	}
+	err = s.service.UpdateBookingStatusById(ctx, bookingId, domain.BookingStatus(req.Status))
+	return nil, err
 }

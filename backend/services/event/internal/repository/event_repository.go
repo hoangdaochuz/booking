@@ -23,12 +23,21 @@ type EventRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
+type UpdateTicketAvailabilityRequest struct {
+	tierId        uuid.UUID
+	deltaQuantity int
+}
+type UpdateBatchTicketAvailabilityRequest struct {
+	Data []UpdateBatchTicketAvailabilityRequest
+}
+
 type TicketTierRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.TicketTier, error)
 	GetByEventID(ctx context.Context, eventID uuid.UUID) ([]domain.TicketTier, error)
 	UpdateAvailability(ctx context.Context, tierID uuid.UUID, delta int32, expectedVersion int32) (*domain.TicketTier, error)
 	UpdateAvailabilityNoLock(ctx context.Context, tierID uuid.UUID, delta int32) error
 	UpdateAvailabilityPessimistic(ctx context.Context, tierID uuid.UUID, delta int32) (*domain.TicketTier, error)
+	UpdateBatchTicketAvailability(ctx context.Context, req *UpdateBatchTicketAvailabilityRequest) error
 }
 
 type SeatRepository interface {

@@ -172,3 +172,12 @@ func (p *PaymentServer) DeletePayment(ctx context.Context, req *paymentv1.Delete
 	}
 	return nil, nil
 }
+
+func (p *PaymentServer) UpdatePaymentStatusByPaymentIntentId(ctx context.Context, req *paymentv1.UpdatePaymentStatusByPaymentIntentIdReq) (*emptypb.Empty, error) {
+
+	err := p.service.UpdatePaymentStatusByPaymentIntentId(ctx, req.PaymentIntentId, domain.PaymentStatus(req.Status))
+	if err != nil {
+		return nil, err
+	}
+	return nil, nil
+}

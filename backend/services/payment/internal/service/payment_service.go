@@ -86,3 +86,7 @@ func (p *PaymentService) SoftDeletePayment(ctx context.Context, ID uuid.UUID) er
 func (p *PaymentService) DeletePayment(ctx context.Context, id uuid.UUID) error {
 	return p.repo.DeletePayment(ctx, id)
 }
+
+func (p *PaymentService) UpdatePaymentStatusByPaymentIntentId(ctx context.Context, paymentIntentId string, status domain.PaymentStatus) error {
+	return p.repo.UpdatePaymentStatusByPaymentIntentId(ctx, paymentIntentId, status)
+}

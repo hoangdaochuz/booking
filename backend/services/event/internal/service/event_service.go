@@ -193,6 +193,18 @@ func (s *EventService) UpdateTicketAvailability(ctx context.Context, tierID uuid
 	}
 }
 
+type UpdateTicketAvailabilityRequest struct {
+	tierId        uuid.UUID
+	deltaQuantity int
+}
+type UpdateBatchTicketAvailabilityRequest struct {
+	Data []UpdateBatchTicketAvailabilityRequest
+}
+
+func (s *EventService) UpdateBatchTicketAvailability(ctx context.Context, req *UpdateBatchTicketAvailabilityRequest) error {
+	return nil
+}
+
 func (s *EventService) GetSeats(ctx context.Context, eventID uuid.UUID, tierID *uuid.UUID) ([]*domain.Seat, error) {
 	return s.seatRepo.GetByEventID(ctx, eventID, tierID)
 }

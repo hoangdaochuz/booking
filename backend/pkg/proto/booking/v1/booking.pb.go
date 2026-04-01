@@ -9,6 +9,7 @@ package bookingv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -542,12 +543,64 @@ func (x *BookingItem) GetSeatIds() []string {
 	return nil
 }
 
+type UpdateBookingStatusByIdReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateBookingStatusByIdReq) Reset() {
+	*x = UpdateBookingStatusByIdReq{}
+	mi := &file_proto_booking_v1_booking_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateBookingStatusByIdReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateBookingStatusByIdReq) ProtoMessage() {}
+
+func (x *UpdateBookingStatusByIdReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_booking_v1_booking_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateBookingStatusByIdReq.ProtoReflect.Descriptor instead.
+func (*UpdateBookingStatusByIdReq) Descriptor() ([]byte, []int) {
+	return file_proto_booking_v1_booking_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *UpdateBookingStatusByIdReq) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *UpdateBookingStatusByIdReq) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
 var File_proto_booking_v1_booking_proto protoreflect.FileDescriptor
 
 const file_proto_booking_v1_booking_proto_rawDesc = "" +
 	"\n" +
 	"\x1eproto/booking/v1/booking.proto\x12\n" +
-	"booking.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa3\x01\n" +
+	"booking.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bgoogle/protobuf/empty.proto\"\xa3\x01\n" +
 	"\x14CreateBookingRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\x124\n" +
@@ -587,13 +640,17 @@ const file_proto_booking_v1_booking_proto_rawDesc = "" +
 	"\ttier_name\x18\x03 \x01(\tR\btierName\x12\x1a\n" +
 	"\bquantity\x18\x04 \x01(\x05R\bquantity\x12(\n" +
 	"\x10unit_price_cents\x18\x05 \x01(\x03R\x0eunitPriceCents\x12\x19\n" +
-	"\bseat_ids\x18\x06 \x03(\tR\aseatIds2\xd3\x02\n" +
+	"\bseat_ids\x18\x06 \x03(\tR\aseatIds\"D\n" +
+	"\x1aUpdateBookingStatusByIdReq\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status2\xae\x03\n" +
 	"\x0eBookingService\x12L\n" +
 	"\rCreateBooking\x12 .booking.v1.CreateBookingRequest\x1a\x19.booking.v1.BookingDetail\x12F\n" +
 	"\n" +
 	"GetBooking\x12\x1d.booking.v1.GetBookingRequest\x1a\x19.booking.v1.BookingDetail\x12]\n" +
 	"\x10ListUserBookings\x12#.booking.v1.ListUserBookingsRequest\x1a$.booking.v1.ListUserBookingsResponse\x12L\n" +
-	"\rCancelBooking\x12 .booking.v1.CancelBookingRequest\x1a\x19.booking.v1.BookingDetailB5Z3github.com/ticketbox/pkg/proto/booking/v1;bookingv1b\x06proto3"
+	"\rCancelBooking\x12 .booking.v1.CancelBookingRequest\x1a\x19.booking.v1.BookingDetail\x12Y\n" +
+	"\x17UpdateBookingStatusById\x12&.booking.v1.UpdateBookingStatusByIdReq\x1a\x16.google.protobuf.EmptyB5Z3github.com/ticketbox/pkg/proto/booking/v1;bookingv1b\x06proto3"
 
 var (
 	file_proto_booking_v1_booking_proto_rawDescOnce sync.Once
@@ -607,36 +664,40 @@ func file_proto_booking_v1_booking_proto_rawDescGZIP() []byte {
 	return file_proto_booking_v1_booking_proto_rawDescData
 }
 
-var file_proto_booking_v1_booking_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_proto_booking_v1_booking_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_proto_booking_v1_booking_proto_goTypes = []any{
-	(*CreateBookingRequest)(nil),     // 0: booking.v1.CreateBookingRequest
-	(*BookingItemRequest)(nil),       // 1: booking.v1.BookingItemRequest
-	(*GetBookingRequest)(nil),        // 2: booking.v1.GetBookingRequest
-	(*ListUserBookingsRequest)(nil),  // 3: booking.v1.ListUserBookingsRequest
-	(*ListUserBookingsResponse)(nil), // 4: booking.v1.ListUserBookingsResponse
-	(*CancelBookingRequest)(nil),     // 5: booking.v1.CancelBookingRequest
-	(*BookingDetail)(nil),            // 6: booking.v1.BookingDetail
-	(*BookingItem)(nil),              // 7: booking.v1.BookingItem
-	(*timestamppb.Timestamp)(nil),    // 8: google.protobuf.Timestamp
+	(*CreateBookingRequest)(nil),       // 0: booking.v1.CreateBookingRequest
+	(*BookingItemRequest)(nil),         // 1: booking.v1.BookingItemRequest
+	(*GetBookingRequest)(nil),          // 2: booking.v1.GetBookingRequest
+	(*ListUserBookingsRequest)(nil),    // 3: booking.v1.ListUserBookingsRequest
+	(*ListUserBookingsResponse)(nil),   // 4: booking.v1.ListUserBookingsResponse
+	(*CancelBookingRequest)(nil),       // 5: booking.v1.CancelBookingRequest
+	(*BookingDetail)(nil),              // 6: booking.v1.BookingDetail
+	(*BookingItem)(nil),                // 7: booking.v1.BookingItem
+	(*UpdateBookingStatusByIdReq)(nil), // 8: booking.v1.UpdateBookingStatusByIdReq
+	(*timestamppb.Timestamp)(nil),      // 9: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),              // 10: google.protobuf.Empty
 }
 var file_proto_booking_v1_booking_proto_depIdxs = []int32{
-	1, // 0: booking.v1.CreateBookingRequest.items:type_name -> booking.v1.BookingItemRequest
-	6, // 1: booking.v1.ListUserBookingsResponse.bookings:type_name -> booking.v1.BookingDetail
-	7, // 2: booking.v1.BookingDetail.items:type_name -> booking.v1.BookingItem
-	8, // 3: booking.v1.BookingDetail.created_at:type_name -> google.protobuf.Timestamp
-	0, // 4: booking.v1.BookingService.CreateBooking:input_type -> booking.v1.CreateBookingRequest
-	2, // 5: booking.v1.BookingService.GetBooking:input_type -> booking.v1.GetBookingRequest
-	3, // 6: booking.v1.BookingService.ListUserBookings:input_type -> booking.v1.ListUserBookingsRequest
-	5, // 7: booking.v1.BookingService.CancelBooking:input_type -> booking.v1.CancelBookingRequest
-	6, // 8: booking.v1.BookingService.CreateBooking:output_type -> booking.v1.BookingDetail
-	6, // 9: booking.v1.BookingService.GetBooking:output_type -> booking.v1.BookingDetail
-	4, // 10: booking.v1.BookingService.ListUserBookings:output_type -> booking.v1.ListUserBookingsResponse
-	6, // 11: booking.v1.BookingService.CancelBooking:output_type -> booking.v1.BookingDetail
-	8, // [8:12] is the sub-list for method output_type
-	4, // [4:8] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	1,  // 0: booking.v1.CreateBookingRequest.items:type_name -> booking.v1.BookingItemRequest
+	6,  // 1: booking.v1.ListUserBookingsResponse.bookings:type_name -> booking.v1.BookingDetail
+	7,  // 2: booking.v1.BookingDetail.items:type_name -> booking.v1.BookingItem
+	9,  // 3: booking.v1.BookingDetail.created_at:type_name -> google.protobuf.Timestamp
+	0,  // 4: booking.v1.BookingService.CreateBooking:input_type -> booking.v1.CreateBookingRequest
+	2,  // 5: booking.v1.BookingService.GetBooking:input_type -> booking.v1.GetBookingRequest
+	3,  // 6: booking.v1.BookingService.ListUserBookings:input_type -> booking.v1.ListUserBookingsRequest
+	5,  // 7: booking.v1.BookingService.CancelBooking:input_type -> booking.v1.CancelBookingRequest
+	8,  // 8: booking.v1.BookingService.UpdateBookingStatusById:input_type -> booking.v1.UpdateBookingStatusByIdReq
+	6,  // 9: booking.v1.BookingService.CreateBooking:output_type -> booking.v1.BookingDetail
+	6,  // 10: booking.v1.BookingService.GetBooking:output_type -> booking.v1.BookingDetail
+	4,  // 11: booking.v1.BookingService.ListUserBookings:output_type -> booking.v1.ListUserBookingsResponse
+	6,  // 12: booking.v1.BookingService.CancelBooking:output_type -> booking.v1.BookingDetail
+	10, // 13: booking.v1.BookingService.UpdateBookingStatusById:output_type -> google.protobuf.Empty
+	9,  // [9:14] is the sub-list for method output_type
+	4,  // [4:9] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_proto_booking_v1_booking_proto_init() }
@@ -650,7 +711,7 @@ func file_proto_booking_v1_booking_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_booking_v1_booking_proto_rawDesc), len(file_proto_booking_v1_booking_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

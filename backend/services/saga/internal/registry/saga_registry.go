@@ -32,8 +32,8 @@ func (s *SagaRegistry) Register(saga *domain.Saga) error {
 }
 
 type SagaStepProcessor struct {
-	Execute    *domain.SagaStepFunc
-	Compensate *domain.SagaStepFunc
+	Execute    any
+	Compensate any
 }
 
 type SagaStepRegistry struct {
@@ -51,6 +51,14 @@ func (s *SagaStepRegistry) Register(name string, processor SagaStepProcessor) {
 		return
 	}
 	s.store[name] = processor
+}
+
+func (s *SagaStepRegistry) Get(name string) *SagaStepProcessor {
+	val, ok := s.store[name]
+	if !ok {
+		return nil
+	}
+	return &val
 }
 
 type SagaHandler struct {
