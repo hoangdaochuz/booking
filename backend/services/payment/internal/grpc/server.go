@@ -78,15 +78,16 @@ func toPaymentEntry(payment *domain.Payment) paymentv1.PaymentEntry {
 		transactionId = *payment.Transaction_id
 	}
 	return paymentv1.PaymentEntry{
-		Id:            payment.ID.String(),
-		UserId:        payment.UserId.String(),
-		BookingId:     bookingId.String(),
-		OrderId:       orderId.String(),
-		Status:        string(payment.Status),
-		Price:         payment.Price,
-		Currency:      payment.Currency,
-		TransactionId: transactionId.String(),
-		PaymentMethod: payment.PaymentMethod,
+		Id:              payment.ID.String(),
+		UserId:          payment.UserId.String(),
+		BookingId:       bookingId.String(),
+		OrderId:         orderId.String(),
+		Status:          string(payment.Status),
+		Price:           payment.Price,
+		Currency:        payment.Currency,
+		TransactionId:   transactionId.String(),
+		PaymentIntentId: payment.PaymentIntentId,
+		PaymentMethod:   payment.PaymentMethod,
 		CreatedAt: &timestamppb.Timestamp{
 			Seconds: int64(payment.CreatedAt.Second()),
 		},
@@ -176,6 +177,33 @@ func (p *PaymentServer) DeletePayment(ctx context.Context, req *paymentv1.Delete
 func (p *PaymentServer) UpdatePaymentStatusByPaymentIntentId(ctx context.Context, req *paymentv1.UpdatePaymentStatusByPaymentIntentIdReq) (*emptypb.Empty, error) {
 
 	err := p.service.UpdatePaymentStatusByPaymentIntentId(ctx, req.PaymentIntentId, domain.PaymentStatus(req.Status))
+	if err != nil {
+		return nil, err
+	}
+	return nil, nil
+}
+
+func (p *PaymentServer) GetPaymentByPaymentIntentId(ctx context.Context, req *paymentv1.GetPaymentByIntentIdReq) (*paymentv1.PaymentEntry, error) {
+	res, err := p.service.GetPaymentByPaymentIntentId(ctx, req.PaymentIntentId)
+	if err != nil {
+		p.logger.Sugar().Errorf("get payment by payment intent id fail: %w", err)
+		if errors.Is(err, repository.RecordNotFound) {
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
+		return nil, err
+	}
+	if res == nil {
+		return nil, status.Error(codes.Internal, "get payment by payment_intent_id return nil")
+	}
+	payment := toPaymentEntry(res)
+	return &payment, nil
+}
+
+func (p *PaymentServer) MakeRefundPayment(ctx context.Context, req *paymentv1.MakeRefundPaymentReq) (*emptypb.Empty, error) {
+	err := p.service.MakePaymentRefund(ctx, &domain.MakePaymentRefundRequest{
+		PaymentIntentId: req.PaymentIntentId,
+		Amount:          int(req.Price),
+	})
 	if err != nil {
 		return nil, err
 	}

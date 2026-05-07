@@ -67,8 +67,8 @@ func (p *PostgresPaymentRepository) GetPaymentByID(ctx context.Context, ID uuid.
 		&status,
 		&result.Price,
 		&result.Currency,
-		&result.PaymentIntentId,
 		&transactionId,
+		&result.PaymentIntentId,
 		&result.PaymentMethod,
 		&result.CreatedAt)
 	if err != nil {
@@ -105,6 +105,41 @@ func (p *PostgresPaymentRepository) UpdatePaymentStatusByPaymentIntentId(ctx con
 
 	_, err := p.pool.Exec(ctx, query, string(status), paymentIntentId)
 	return err
+}
+
+func (p *PostgresPaymentRepository) GetPaymentByPaymentIntentId(ctx context.Context, paymentIntentId string) (*domain.Payment, error) {
+	query := `SELECT p.id, p.user_id, p.booking_id, p.order_id, p.status, p.price, p.currency, p.transaction_id, p.payment_intent_id, p.payment_method, p.created_at
+		FROM payments as p
+		WHERE p.payment_intent_id = $1;
+	`
+	result := domain.Payment{}
+	var orderId uuid.UUID
+	var status string
+	var transactionId uuid.UUID
+	var bookingId uuid.UUID
+	err := p.pool.QueryRow(ctx, query, paymentIntentId).Scan(&result.ID,
+		&result.UserId,
+		&bookingId,
+		&orderId,
+		&status,
+		&result.Price,
+		&result.Currency,
+		&transactionId,
+		&result.PaymentIntentId,
+		&result.PaymentMethod,
+		&result.CreatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, RecordNotFound
+		}
+		return nil, fmt.Errorf("fail to get payment by id: %w", err)
+	}
+	result.BookingId = &bookingId
+	result.OrderId = &orderId
+	result.Transaction_id = &transactionId
+	result.Status = domain.PaymentStatus(status)
+
+	return &result, nil
 }
 
 func (p *PostgresPaymentRepository) UpdatePayment(ctx context.Context, payment *domain.Payment) error {

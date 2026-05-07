@@ -14,6 +14,17 @@ service PaymentService {
     rpc UpdatePayment(UpdatePaymentRequest) returns (google.protobuf.Empty);
     rpc DeletePayment(DeletePaymentRequest) returns (google.protobuf.Empty);
     rpc UpdatePaymentStatusByPaymentIntentId(UpdatePaymentStatusByPaymentIntentIdReq) returns (google.protobuf.Empty);
+    rpc GetPaymentByPaymentIntentId(GetPaymentByIntentIdReq) returns (PaymentEntry);
+    rpc MakeRefundPayment(MakeRefundPaymentReq) returns (google.protobuf.Empty);
+}
+
+message GetPaymentByIntentIdReq {
+  string paymentIntentId = 1;
+}
+
+message MakeRefundPaymentReq {
+  string paymentIntentId = 1;
+  int32 price = 2;
 }
 
 message GetPaymentByIdReq {
@@ -32,6 +43,7 @@ message PaymentEntry {
   string payment_method = 9;
   google.protobuf.Timestamp created_at = 10;
   google.protobuf.Timestamp updated_at = 11;
+  string payment_intent_id = 12;
 }
 
 message CreatePaymentRequest {

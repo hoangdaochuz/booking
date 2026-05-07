@@ -84,6 +84,10 @@ func (s *SagaHandler) AddStep(step *domain.SagaStep) {
 	s.saga.Steps = append(s.saga.Steps, *step)
 }
 
+func (s *SagaHandler) FreeUpSteps() {
+	s.saga.Steps = make([]domain.SagaStep, 0)
+}
+
 func (s *SagaHandler) GetSagaID() uuid.UUID {
 	return s.saga.ID
 }

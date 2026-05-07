@@ -90,3 +90,11 @@ func (p *PaymentService) DeletePayment(ctx context.Context, id uuid.UUID) error 
 func (p *PaymentService) UpdatePaymentStatusByPaymentIntentId(ctx context.Context, paymentIntentId string, status domain.PaymentStatus) error {
 	return p.repo.UpdatePaymentStatusByPaymentIntentId(ctx, paymentIntentId, status)
 }
+
+func (p *PaymentService) GetPaymentByPaymentIntentId(ctx context.Context, paymentIntentId string) (*domain.Payment, error) {
+	return p.repo.GetPaymentByPaymentIntentId(ctx, paymentIntentId)
+}
+
+func (p *PaymentService) MakePaymentRefund(ctx context.Context, req *domain.MakePaymentRefundRequest) error {
+	return p.gateway.MakePaymentRefund(ctx, req)
+}

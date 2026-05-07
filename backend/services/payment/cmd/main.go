@@ -43,10 +43,11 @@ func main() {
 	defer pool.Close()
 
 	stripe_go.Key = cfg.StripeSecretKey
+	stripeClient := stripe_go.NewClient(cfg.StripeSecretKey)
 
 	paymentProducer := kafka.NewPaymentProducer(cfg.KafkaBrokers, logger)
 
-	stripeGateway := stripe.NewStripePaymentGateway(logger, cfg.StripeSecretWebhook, paymentProducer)
+	stripeGateway := stripe.NewStripePaymentGateway(logger, cfg.StripeSecretWebhook, paymentProducer, stripeClient)
 
 	paymentRepo := repository.NewPostgresPaymentRepository(pool)
 	paymentService := service.NewPaymentService(paymentRepo, logger, stripeGateway)
@@ -57,7 +58,7 @@ func main() {
 
 	// HTTP server for Webhook stripe/zalopay/momo payment gateway
 	mux := http.NewServeMux()
-	stripeWebhookGateway := stripe.NewStripePaymentGateway(logger, cfg.StripeSecretWebhook, paymentProducer)
+	stripeWebhookGateway := stripe.NewStripePaymentGateway(logger, cfg.StripeSecretWebhook, paymentProducer, stripeClient)
 	paymentHttpServerStripeHandler := payment_http.NewPaymentHttpHandler(paymentService, logger, stripeWebhookGateway)
 	// Momo, zalopay,...
 

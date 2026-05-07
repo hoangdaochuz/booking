@@ -94,3 +94,8 @@ type CreatePaymentIntentResponse struct {
 type WebhookPaymentResponse struct {
 	EventType string
 }
+
+type MakePaymentRefundRequest struct {
+	PaymentIntentId string `json:"payment_intent_id" binding:"required"`
+	Amount          int    `json:"amount" binding:"required"`
+}

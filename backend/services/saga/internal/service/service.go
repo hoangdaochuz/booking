@@ -113,9 +113,9 @@ func (s *SagaService) CreatePayment(ctx context.Context, req *paymentv1.CreatePa
 	return paymentRes, err
 }
 
-func (s *SagaService) RefundPayment(ctx context.Context) error {
-	s.logger.Info("Implementing refund processing")
-	return nil
+func (s *SagaService) RefundPayment(ctx context.Context, req *paymentv1.MakeRefundPaymentReq) error {
+	_, err := s.paymentClient.MakeRefundPayment(ctx, req)
+	return err
 }
 
 func (s *SagaService) UpdateBookingStatus(ctx context.Context, req *bookingv1.UpdateBookingStatusByIdReq) error {
@@ -208,84 +208,89 @@ func (s *SagaService) InitializeSagaHandler(ctx context.Context, req *StartOrder
 			sagaHandler.SetPaymentResponse(paymentRes)
 			return nil
 		},
-		Compensate: func(ctx context.Context) error {
-			// write refund function
-			err := paymentProcessor.Compensate.(func(ctx context.Context) error)(ctx)
-			if err != nil {
-				s.logger.Sugar().Error("saga payment refund step fail", zap.Error(err))
-				return err
-			}
-			return nil
-		},
+		// Compensate: func(ctx context.Context) error {
+		// 	// write refund function
+		// 	err := paymentProcessor.Compensate.(func(ctx context.Context) error)(ctx)
+		// 	if err != nil {
+		// 		s.logger.Sugar().Error("saga payment refund step fail", zap.Error(err))
+		// 		return err
+		// 	}
+		// 	// update payment to fail
+		// 	s.paymentClient.UpdatePaymentStatusByPaymentIntentId(ctx, &paymentv1.UpdatePaymentStatusByPaymentIntentIdReq{
+		// 		PaymentIntentId: sagaHandler.GetPaymentResponse().PaymentIntentId,
+		// 		Status:          "fail",
+		// 	})
+		// 	return nil
+		// },
 	}
 
-	updateSeatAfterPaymentStep := &domain.SagaStep{
-		ID:                    uuid.New(),
-		SagaID:                sagaId,
-		Name:                  string(sagapkg.UPDATE_SEAT_BOOKED),
-		Status:                domain.SAGA_STEP_PENDING,
-		Order:                 2,
-		ShouldPauseForPayment: false,
-		Execute: func(ctx context.Context) error {
-			err := reservedSeatProcessor.Execute.(func(ctx context.Context, req *eventv1.UpdateBatchSeatStatusRequest) error)(ctx, &eventv1.UpdateBatchSeatStatusRequest{
-				SeatIds:   req.SeatIds,
-				Status:    "booked",
-				BookingId: req.BookingId,
-			})
-			if err != nil {
-				s.logger.Error("Saga update seat to booked fail", zap.Error(err))
-				return err
-			}
-			return nil
-		},
-		Compensate: func(ctx context.Context) error {
-			err := reservedSeatProcessor.Execute.(func(ctx context.Context, req *eventv1.UpdateBatchSeatStatusRequest) error)(ctx, &eventv1.UpdateBatchSeatStatusRequest{
-				SeatIds:   req.SeatIds,
-				Status:    "available",
-				BookingId: req.BookingId,
-			})
-			if err != nil {
-				s.logger.Error("Saga update seat to booked fail", zap.Error(err))
-				return err
-			}
-			return nil
-		},
-	}
+	// updateSeatAfterPaymentStep := &domain.SagaStep{
+	// 	ID:                    uuid.New(),
+	// 	SagaID:                sagaId,
+	// 	Name:                  string(sagapkg.UPDATE_SEAT_BOOKED),
+	// 	Status:                domain.SAGA_STEP_PENDING,
+	// 	Order:                 2,
+	// 	ShouldPauseForPayment: false,
+	// 	Execute: func(ctx context.Context) error {
+	// 		err := updateSeatAfterPaymentProcessor.Execute.(func(ctx context.Context, req *eventv1.UpdateBatchSeatStatusRequest) error)(ctx, &eventv1.UpdateBatchSeatStatusRequest{
+	// 			SeatIds:   req.SeatIds,
+	// 			Status:    "booked",
+	// 			BookingId: req.BookingId,
+	// 		})
+	// 		if err != nil {
+	// 			s.logger.Error("Saga update seat to booked fail", zap.Error(err))
+	// 			return err
+	// 		}
+	// 		return nil
+	// 	},
+	// 	Compensate: func(ctx context.Context) error {
+	// 		err := updateSeatAfterPaymentProcessor.Execute.(func(ctx context.Context, req *eventv1.UpdateBatchSeatStatusRequest) error)(ctx, &eventv1.UpdateBatchSeatStatusRequest{
+	// 			SeatIds:   req.SeatIds,
+	// 			Status:    "available",
+	// 			BookingId: req.BookingId,
+	// 		})
+	// 		if err != nil {
+	// 			s.logger.Error("Saga update seat to booked fail", zap.Error(err))
+	// 			return err
+	// 		}
+	// 		return nil
+	// 	},
+	// }
 
-	updateBookingToConfirmed := &domain.SagaStep{
-		ID:                    uuid.New(),
-		SagaID:                sagaId,
-		Name:                  string(sagapkg.UPDATE_BOOKING_STATUS_CONFIRMED),
-		Status:                domain.SAGA_STEP_PENDING,
-		Order:                 3,
-		ShouldPauseForPayment: false,
-		Execute: func(ctx context.Context) error {
-			err := updateBookingStatusProcessor.Execute.(func(ctx context.Context, req *bookingv1.UpdateBookingStatusByIdReq) error)(ctx, &bookingv1.UpdateBookingStatusByIdReq{
-				Id:     req.BookingId,
-				Status: "CONFIRMED",
-			})
-			if err != nil {
-				s.logger.Error("fail to update booking status to confirmed after payment", zap.Error(err))
-			}
-			return nil
-		},
-		Compensate: func(ctx context.Context) error {
-			err := updateBookingStatusProcessor.Execute.(func(ctx context.Context, req *bookingv1.UpdateBookingStatusByIdReq) error)(ctx, &bookingv1.UpdateBookingStatusByIdReq{
-				Id:     req.BookingId,
-				Status: "FAILED",
-			})
-			if err != nil {
-				s.logger.Error("fail to update booking status to failed after payment", zap.Error(err))
-			}
-			return nil
-		},
-	}
+	// updateBookingToConfirmed := &domain.SagaStep{
+	// 	ID:                    uuid.New(),
+	// 	SagaID:                sagaId,
+	// 	Name:                  string(sagapkg.UPDATE_BOOKING_STATUS_CONFIRMED),
+	// 	Status:                domain.SAGA_STEP_PENDING,
+	// 	Order:                 3,
+	// 	ShouldPauseForPayment: false,
+	// 	Execute: func(ctx context.Context) error {
+	// 		err := updateBookingStatusProcessor.Execute.(func(ctx context.Context, req *bookingv1.UpdateBookingStatusByIdReq) error)(ctx, &bookingv1.UpdateBookingStatusByIdReq{
+	// 			Id:     req.BookingId,
+	// 			Status: "CONFIRMED",
+	// 		})
+	// 		if err != nil {
+	// 			s.logger.Error("fail to update booking status to confirmed after payment", zap.Error(err))
+	// 		}
+	// 		return nil
+	// 	},
+	// 	Compensate: func(ctx context.Context) error {
+	// 		err := updateBookingStatusProcessor.Execute.(func(ctx context.Context, req *bookingv1.UpdateBookingStatusByIdReq) error)(ctx, &bookingv1.UpdateBookingStatusByIdReq{
+	// 			Id:     req.BookingId,
+	// 			Status: "FAILED",
+	// 		})
+	// 		if err != nil {
+	// 			s.logger.Error("fail to update booking status to failed after payment", zap.Error(err))
+	// 		}
+	// 		return nil
+	// 	},
+	// }
 
 	sagaHandler.AddStep(reservedSeatStep)
 	sagaHandler.AddStep(createPaymentStep)
-	sagaHandler.AddStep(updateSeatAfterPaymentStep)
+	// sagaHandler.AddStep(updateSeatAfterPaymentStep)
 	// sagaHandler.AddStep(reduceAvailableSeatNumber)
-	sagaHandler.AddStep(updateBookingToConfirmed)
+	// sagaHandler.AddStep(updateBookingToConfirmed)
 	// sagaHanlder.AddStep(sendMailConfirmToUser)
 	// register more steps...
 	// .
@@ -345,9 +350,213 @@ func (s *SagaService) HandleSagaAferPaymentSuccess(ctx context.Context, req json
 		s.logger.Error("fail to update status of payment to success", zap.Error(err))
 		return fmt.Errorf("fail to update status of payment to success: %w", err)
 	}
-	// Update payment (status, payment_intent_id)
+	// Start saga again
+	// if saga fail --> roll back payment
+	err = s.ContinueSagaAfterPaymentSuccess(ctx, paymentEvent.Id)
+	if err != nil {
+		s.logger.Sugar().Error("fail to continue saga after payment success", zap.Error(err))
+		return fmt.Errorf("fail to continue saga after payment success: %w", err)
+	}
+
 	s.logger.Info("Handling Saga after payment process successfully")
 	return nil
+}
+
+func (s *SagaService) ContinueSagaAfterPaymentSuccess(ctx context.Context, paymentIntentId string) error {
+	payment, err := s.paymentClient.GetPaymentByPaymentIntentId(ctx, &paymentv1.GetPaymentByIntentIdReq{
+		PaymentIntentId: paymentIntentId,
+	})
+	if err != nil {
+		return err
+	}
+	if payment == nil {
+		return fmt.Errorf("the payment not found")
+	}
+	bookingUUID, err := uuid.Parse(payment.BookingId)
+	if err != nil {
+		return err
+	}
+	saga, err := s.repo.GetSagaByBookingId(ctx, bookingUUID)
+	if err != nil {
+		return err
+	}
+	booking, err := s.bookingClient.GetBooking(ctx, &bookingv1.GetBookingRequest{
+		BookingId: payment.BookingId,
+	})
+	if err != nil {
+		return err
+	}
+	if booking == nil {
+		return fmt.Errorf("the booking not found")
+	}
+
+	seatIds := []string{}
+	for _, item := range booking.Items {
+		seatIds = append(seatIds, item.SeatIds...)
+	}
+
+	sagaHanlder, err := s.reBuildSagaHandler(ctx, saga, payment, seatIds)
+	if err != nil {
+		return fmt.Errorf("fail to re-build saga handler after payment success")
+	}
+	err = sagaHanlder.Execute(ctx, saga.CurrentStepIndex+1)
+	if err != nil {
+		return fmt.Errorf("saga execute fail after payment success: %w", err)
+	}
+	return nil
+}
+
+func (s *SagaService) reBuildSagaHandler(ctx context.Context, saga *domain.Saga, payment *paymentv1.PaymentEntry, seatIds []string) (*registry.SagaHandler, error) {
+	s.logger.Sugar().Infof("Starting re-build saga after payment success...")
+	sagaHandler := registry.NewSagaHandler(saga, s.repo, s.logger)
+	reservedSeatProcessor := s.sagaStepRegistry.Get(string(sagapkg.RESERVED_SEAT_STEP))
+	if reservedSeatProcessor == nil {
+		return nil, fmt.Errorf("fail to get processor from saga step registry for step %s: ", sagapkg.RESERVED_SEAT_STEP)
+	}
+
+	paymentProcessor := s.sagaStepRegistry.Get(string(sagapkg.CREATE_PAYMENT_INTENT_STEP))
+	if paymentProcessor == nil {
+		return nil, fmt.Errorf("fail to get processor from saga step registry for step %s: ", sagapkg.CREATE_PAYMENT_INTENT_STEP)
+	}
+
+	updateSeatAfterPaymentProcessor := s.sagaStepRegistry.Get(string(sagapkg.UPDATE_SEAT_BOOKED))
+	if updateSeatAfterPaymentProcessor == nil {
+		return nil, fmt.Errorf("fail to get processor from saga step registry for step %s", sagapkg.UPDATE_SEAT_BOOKED)
+	}
+
+	updateBookingStatusProcessor := s.sagaStepRegistry.Get(string(sagapkg.UPDATE_BOOKING_STATUS_CONFIRMED))
+	if updateBookingStatusProcessor == nil {
+		return nil, fmt.Errorf("fail to get processor from saga step registry for step %s", sagapkg.UPDATE_BOOKING_STATUS_CONFIRMED)
+	}
+	reservedSeatStep := &domain.SagaStep{
+		ID:                    saga.Steps[0].ID,
+		SagaID:                saga.ID,
+		Name:                  saga.Steps[0].Name,
+		Status:                saga.Steps[0].Status,
+		Order:                 0,
+		ShouldPauseForPayment: false,
+		Compensate: func(ctx context.Context) error {
+			err := reservedSeatProcessor.Compensate.(func(ctx context.Context, req *eventv1.UpdateBatchSeatStatusRequest) error)(ctx, &eventv1.UpdateBatchSeatStatusRequest{
+				SeatIds:   seatIds,
+				Status:    "available",
+				BookingId: uuid.Nil.String(),
+			})
+			if err != nil {
+				s.logger.Error("Saga undo-reserve seat fail", zap.Error(err))
+				return err
+			}
+			return nil
+		},
+	}
+	createPaymentStep := &domain.SagaStep{
+		ID:                    saga.Steps[1].ID,
+		SagaID:                saga.ID,
+		Name:                  saga.Steps[1].Name,
+		Status:                saga.Steps[1].Status,
+		Order:                 1,
+		ShouldPauseForPayment: true,
+		Compensate: func(ctx context.Context) error {
+			// write refund function
+			go func(ctx context.Context) {
+				err := paymentProcessor.Compensate.(func(ctx context.Context, req *paymentv1.MakeRefundPaymentReq) error)(ctx, &paymentv1.MakeRefundPaymentReq{
+					PaymentIntentId: payment.PaymentIntentId,
+					Price:           payment.Price,
+				})
+				if err != nil {
+					s.logger.Sugar().Error("saga payment refund step fail", zap.Error(err))
+					// Handle fail ( retry, DLQ, ... )
+				}
+			}(ctx)
+
+			// update payment to fail
+			s.paymentClient.UpdatePaymentStatusByPaymentIntentId(ctx, &paymentv1.UpdatePaymentStatusByPaymentIntentIdReq{
+				PaymentIntentId: sagaHandler.GetPaymentResponse().PaymentIntentId,
+				Status:          "fail",
+			})
+			return nil
+		},
+	}
+
+	updateSeatAfterPaymentStep := &domain.SagaStep{
+		ID:                    uuid.New(),
+		SagaID:                saga.ID,
+		Name:                  string(sagapkg.UPDATE_SEAT_BOOKED),
+		Status:                domain.SAGA_STEP_PENDING,
+		Order:                 2,
+		ShouldPauseForPayment: false,
+		Execute: func(ctx context.Context) error {
+			err := updateSeatAfterPaymentProcessor.Execute.(func(ctx context.Context, req *eventv1.UpdateBatchSeatStatusRequest) error)(ctx, &eventv1.UpdateBatchSeatStatusRequest{
+				SeatIds:   seatIds,
+				Status:    "booked",
+				BookingId: payment.BookingId,
+			})
+			if err != nil {
+				s.logger.Error("Saga update seat to booked fail", zap.Error(err))
+				return err
+			}
+			return nil
+		},
+		Compensate: func(ctx context.Context) error {
+			err := updateSeatAfterPaymentProcessor.Execute.(func(ctx context.Context, req *eventv1.UpdateBatchSeatStatusRequest) error)(ctx, &eventv1.UpdateBatchSeatStatusRequest{
+				SeatIds:   seatIds,
+				Status:    "available",
+				BookingId: payment.BookingId,
+			})
+			if err != nil {
+				s.logger.Error("Saga update seat to booked fail", zap.Error(err))
+				return err
+			}
+			return nil
+		},
+	}
+
+	updateBookingToConfirmed := &domain.SagaStep{
+		ID:                    uuid.New(),
+		SagaID:                saga.ID,
+		Name:                  string(sagapkg.UPDATE_BOOKING_STATUS_CONFIRMED),
+		Status:                domain.SAGA_STEP_PENDING,
+		Order:                 3,
+		ShouldPauseForPayment: false,
+		Execute: func(ctx context.Context) error {
+			err := updateBookingStatusProcessor.Execute.(func(ctx context.Context, req *bookingv1.UpdateBookingStatusByIdReq) error)(ctx, &bookingv1.UpdateBookingStatusByIdReq{
+				Id:     payment.BookingId,
+				Status: "CONFIRMED",
+			})
+			if err != nil {
+				s.logger.Error("fail to update booking status to confirmed after payment", zap.Error(err))
+			}
+			return nil
+		},
+		Compensate: func(ctx context.Context) error {
+			err := updateBookingStatusProcessor.Execute.(func(ctx context.Context, req *bookingv1.UpdateBookingStatusByIdReq) error)(ctx, &bookingv1.UpdateBookingStatusByIdReq{
+				Id:     payment.BookingId,
+				Status: "FAILED",
+			})
+			if err != nil {
+				s.logger.Error("fail to update booking status to failed after payment", zap.Error(err))
+			}
+			return nil
+		},
+	}
+	// Reset saga steps
+	sagaHandler.FreeUpSteps()
+
+	sagaHandler.AddStep(reservedSeatStep)
+	sagaHandler.AddStep(createPaymentStep)
+	sagaHandler.AddStep(updateSeatAfterPaymentStep)
+	// sagaHandler.AddStep(reduceAvailableSeatNumber)
+	sagaHandler.AddStep(updateBookingToConfirmed)
+	// sagaHanlder.AddStep(sendMailConfirmToUser)
+	// register more steps...
+	// .
+	// .
+	// .
+	err := s.repo.UpsertBatchSagaSteps(ctx, sagaHandler.GetSaga().Steps)
+	if err != nil {
+		return nil, err
+	}
+
+	return sagaHandler, nil
 }
 
 func (s *SagaService) HandleSagaAfterPaymentFailure(ctx context.Context, req json.RawMessage) error {

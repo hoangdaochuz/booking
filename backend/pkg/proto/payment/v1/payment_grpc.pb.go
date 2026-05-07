@@ -27,6 +27,8 @@ const (
 	PaymentService_UpdatePayment_FullMethodName                        = "/payment.v1.PaymentService/UpdatePayment"
 	PaymentService_DeletePayment_FullMethodName                        = "/payment.v1.PaymentService/DeletePayment"
 	PaymentService_UpdatePaymentStatusByPaymentIntentId_FullMethodName = "/payment.v1.PaymentService/UpdatePaymentStatusByPaymentIntentId"
+	PaymentService_GetPaymentByPaymentIntentId_FullMethodName          = "/payment.v1.PaymentService/GetPaymentByPaymentIntentId"
+	PaymentService_MakeRefundPayment_FullMethodName                    = "/payment.v1.PaymentService/MakeRefundPayment"
 )
 
 // PaymentServiceClient is the client API for PaymentService service.
@@ -40,6 +42,8 @@ type PaymentServiceClient interface {
 	UpdatePayment(ctx context.Context, in *UpdatePaymentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	DeletePayment(ctx context.Context, in *DeletePaymentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	UpdatePaymentStatusByPaymentIntentId(ctx context.Context, in *UpdatePaymentStatusByPaymentIntentIdReq, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	GetPaymentByPaymentIntentId(ctx context.Context, in *GetPaymentByIntentIdReq, opts ...grpc.CallOption) (*PaymentEntry, error)
+	MakeRefundPayment(ctx context.Context, in *MakeRefundPaymentReq, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type paymentServiceClient struct {
@@ -120,6 +124,26 @@ func (c *paymentServiceClient) UpdatePaymentStatusByPaymentIntentId(ctx context.
 	return out, nil
 }
 
+func (c *paymentServiceClient) GetPaymentByPaymentIntentId(ctx context.Context, in *GetPaymentByIntentIdReq, opts ...grpc.CallOption) (*PaymentEntry, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PaymentEntry)
+	err := c.cc.Invoke(ctx, PaymentService_GetPaymentByPaymentIntentId_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *paymentServiceClient) MakeRefundPayment(ctx context.Context, in *MakeRefundPaymentReq, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, PaymentService_MakeRefundPayment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PaymentServiceServer is the server API for PaymentService service.
 // All implementations must embed UnimplementedPaymentServiceServer
 // for forward compatibility.
@@ -131,6 +155,8 @@ type PaymentServiceServer interface {
 	UpdatePayment(context.Context, *UpdatePaymentRequest) (*emptypb.Empty, error)
 	DeletePayment(context.Context, *DeletePaymentRequest) (*emptypb.Empty, error)
 	UpdatePaymentStatusByPaymentIntentId(context.Context, *UpdatePaymentStatusByPaymentIntentIdReq) (*emptypb.Empty, error)
+	GetPaymentByPaymentIntentId(context.Context, *GetPaymentByIntentIdReq) (*PaymentEntry, error)
+	MakeRefundPayment(context.Context, *MakeRefundPaymentReq) (*emptypb.Empty, error)
 	mustEmbedUnimplementedPaymentServiceServer()
 }
 
@@ -161,6 +187,12 @@ func (UnimplementedPaymentServiceServer) DeletePayment(context.Context, *DeleteP
 }
 func (UnimplementedPaymentServiceServer) UpdatePaymentStatusByPaymentIntentId(context.Context, *UpdatePaymentStatusByPaymentIntentIdReq) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdatePaymentStatusByPaymentIntentId not implemented")
+}
+func (UnimplementedPaymentServiceServer) GetPaymentByPaymentIntentId(context.Context, *GetPaymentByIntentIdReq) (*PaymentEntry, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPaymentByPaymentIntentId not implemented")
+}
+func (UnimplementedPaymentServiceServer) MakeRefundPayment(context.Context, *MakeRefundPaymentReq) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method MakeRefundPayment not implemented")
 }
 func (UnimplementedPaymentServiceServer) mustEmbedUnimplementedPaymentServiceServer() {}
 func (UnimplementedPaymentServiceServer) testEmbeddedByValue()                        {}
@@ -309,6 +341,42 @@ func _PaymentService_UpdatePaymentStatusByPaymentIntentId_Handler(srv interface{
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PaymentService_GetPaymentByPaymentIntentId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPaymentByIntentIdReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PaymentServiceServer).GetPaymentByPaymentIntentId(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PaymentService_GetPaymentByPaymentIntentId_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PaymentServiceServer).GetPaymentByPaymentIntentId(ctx, req.(*GetPaymentByIntentIdReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PaymentService_MakeRefundPayment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MakeRefundPaymentReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PaymentServiceServer).MakeRefundPayment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PaymentService_MakeRefundPayment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PaymentServiceServer).MakeRefundPayment(ctx, req.(*MakeRefundPaymentReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PaymentService_ServiceDesc is the grpc.ServiceDesc for PaymentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -343,6 +411,14 @@ var PaymentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdatePaymentStatusByPaymentIntentId",
 			Handler:    _PaymentService_UpdatePaymentStatusByPaymentIntentId_Handler,
+		},
+		{
+			MethodName: "GetPaymentByPaymentIntentId",
+			Handler:    _PaymentService_GetPaymentByPaymentIntentId_Handler,
+		},
+		{
+			MethodName: "MakeRefundPayment",
+			Handler:    _PaymentService_MakeRefundPayment_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

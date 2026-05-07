@@ -34,11 +34,36 @@ func (s *SagaRepository) Create(ctx context.Context, saga *domain.Saga) error {
 	if err != nil {
 		return fmt.Errorf("Insert sagas fail: %w", err)
 	}
-
+	// [TODO]
+	// Should only have 1 command for this one instead of loop --> It will create/use many connection to database --> cause database overhead when high trafic
 	for _, step := range saga.Steps {
 		query = `INSERT INTO saga_steps(id , saga_id, name, status, "order", should_pause_for_payment)
 				 VALUES($1, $2, $3, $4, $5, $6)`
 		_, err = tx.Exec(ctx, query, step.ID, step.SagaID, step.Name, string(step.Status), step.Order, step.ShouldPauseForPayment)
+		if err != nil {
+			return fmt.Errorf("Fail to insert into saga_steps: %w", err)
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+func (s *SagaRepository) UpsertBatchSagaSteps(ctx context.Context, steps []domain.SagaStep) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// [TODO]
+	// Should only have 1 command for this one instead of loop --> It will create/use many connection to database --> cause database overhead when high trafic
+	for _, step := range steps {
+		query := `INSERT INTO saga_steps(id , saga_id, name, status, "order", should_pause_for_payment)
+				 VALUES($1, $2, $3, $4, $5, $6)
+				 ON CONFLICT (id)
+				 DO UPDATE SET
+				 	status = $7
+				 `
+		_, err = tx.Exec(ctx, query, step.ID, step.SagaID, step.Name, string(step.Status), step.Order, step.ShouldPauseForPayment, string(step.Status))
 		if err != nil {
 			return fmt.Errorf("Fail to insert into saga_steps: %w", err)
 		}
