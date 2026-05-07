@@ -24,13 +24,15 @@ type StripePaymentGateway struct {
 	logger          *zap.Logger
 	webhookSecret   string
 	paymentProducer *kafka.PaymentProducer
+	stripeClient    *stripe.Client
 }
 
-func NewStripePaymentGateway(logger *zap.Logger, webhookSecret string, paymentProducer *kafka.PaymentProducer) *StripePaymentGateway {
+func NewStripePaymentGateway(logger *zap.Logger, webhookSecret string, paymentProducer *kafka.PaymentProducer, stripeClient *stripe.Client) *StripePaymentGateway {
 	return &StripePaymentGateway{
 		logger:          logger,
 		webhookSecret:   webhookSecret,
 		paymentProducer: paymentProducer,
+		stripeClient:    stripeClient,
 	}
 }
 
@@ -67,6 +69,18 @@ func (s *StripePaymentGateway) CreatePaymentIntent(ctx context.Context, req *dom
 		ReceiptEmail: pi.ReceiptEmail,
 		Status:       string(pi.Status),
 	}, nil
+}
+
+func (s *StripePaymentGateway) MakePaymentRefund(ctx context.Context, req *domain.MakePaymentRefundRequest) error {
+	params := &stripe.RefundCreateParams{
+		Amount:        utils.NewPointer(int64(req.Amount)),
+		PaymentIntent: &req.PaymentIntentId,
+	}
+	_, err := s.stripeClient.V1Refunds.Create(ctx, params)
+	if err != nil {
+		return fmt.Errorf("refund fail: %w", err)
+	}
+	return nil
 }
 
 func (s *StripePaymentGateway) HandleWebhookAfterPayment(ctx context.Context, req *http.Request, res http.ResponseWriter) (*domain.WebhookPaymentResponse, error) {

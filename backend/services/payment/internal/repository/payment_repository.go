@@ -16,4 +16,5 @@ type PaymentRepositoryInterface interface {
 	UpdatePayment(ctx context.Context, payment *domain.Payment) error
 	SoftDeletePayment(ctx context.Context, ID uuid.UUID) error
 	DeletePayment(ctx context.Context, ID uuid.UUID) error
+	GetPaymentByPaymentIntentId(ctx context.Context, paymentIntentId string) (*domain.Payment, error)
 }
