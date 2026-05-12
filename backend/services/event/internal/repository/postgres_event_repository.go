@@ -256,7 +256,7 @@ func (r *PostgresTicketTierRepository) UpdateAvailabilityPessimistic(ctx context
 
 	tier := &domain.TicketTier{}
 	err = tx.QueryRow(ctx,
-		`UPDATE ticket_tiers SET available_quantity = available_quantity + $2, version = version + 1
+		`UPDATE ticket_tiers SET available_quantity = GREATEST(0, available_quantity + $2), version = version + 1
          WHERE id = $1
          RETURNING id, event_id, name, price_cents, total_quantity, available_quantity, version, created_at`,
 		tierID, delta).Scan(
@@ -278,7 +278,7 @@ func (r *PostgresTicketTierRepository) UpdateBatchTicketAvailability(ctx context
 // Naive -- no locking at all (WILL cause double booking under load!)
 func (r *PostgresTicketTierRepository) UpdateAvailabilityNoLock(ctx context.Context, tierID uuid.UUID, delta int32) error {
 	_, err := r.pool.Exec(ctx,
-		`UPDATE ticket_tiers SET available_quantity = available_quantity + $2 WHERE id = $1`,
+		`UPDATE ticket_tiers SET available_quantity = GREATEST(0, available_quantity + $2) WHERE id = $1`,
 		tierID, delta)
 	return err
 }

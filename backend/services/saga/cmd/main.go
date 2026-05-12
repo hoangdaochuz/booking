@@ -85,6 +85,11 @@ func main() {
 		Compensate: sagaService.UpdateBookingStatus,
 	})
 
+	sagaStepRegistry.Register(string(sagapkg.UPDATE_AVAILABLE_SEAT_NUMBER), registry.SagaStepProcessor{
+		Execute: sagaService.UpdateAvailableSeatNumber,
+		Compensate: sagaService.UpdateAvailableSeatNumber,
+	})
+
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(middleware.UnaryLoggingInterceptor(logger)))
 	sagaGrpcServer := saga_grpc.NewSagaOrchestratorServer(sagaService, logger)
 	sagav1.RegisterSagaOrchestratorServiceServer(grpcServer, sagaGrpcServer)
