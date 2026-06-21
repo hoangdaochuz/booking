@@ -20,6 +20,7 @@ func UnaryLoggingInterceptor(logger *zap.Logger) grpc.UnaryServerInterceptor {
 			zap.String("method", info.FullMethod),
 			zap.Duration("duration", duration),
 			zap.String("status", st.Code().String()),
+			zap.Any("error", err),
 		)
 
 		return resp, err
