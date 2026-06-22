@@ -128,29 +128,38 @@ export function transformSeats(apiSeats: ApiSeat[]): FrontendSeat[] {
 }
 
 // Generate SVG path from seat coordinates
-function generatePathFromSeats(seats: ApiSeat[]): string {
-  if (seats.length === 0) return "";
+function generatePathFromSeats(seats: ApiSeat[]): { path: string; labelPosition: { x: number; y: number } } {
+  if (seats.length === 0) return { path: "", labelPosition: { x: 0, y: 0 } };
 
   // Add padding around the section
   const padding = 15;
 
   // Find bounding box of all seats
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
   for (const seat of seats) {
-    minX = Math.min(minX, seat.position.x);
-    minY = Math.min(minY, seat.position.y);
-    maxX = Math.max(maxX, seat.position.x);
-    maxY = Math.max(maxY, seat.position.y);
+    const sx = Number(seat.position.x) || 0;
+    const sy = Number(seat.position.y) || 0;
+    minX = Math.min(minX, sx);
+    minY = Math.min(minY, sy);
+    maxX = Math.max(maxX, sx);
+    maxY = Math.max(maxY, sy);
   }
 
-  // Create a rounded rectangle path with padding
+  // If coordinates are degenerate (all zero or identical), return empty path so caller can fallback
+  if (!isFinite(minX) || !isFinite(minY) || maxX - minX <= 0 && maxY - minY <= 0) {
+    return { path: "", labelPosition: { x: 0, y: 0 } };
+  }
+
   const x = minX - padding;
   const y = minY - padding;
-  const width = maxX - minX + padding * 2;
-  const height = maxY - minY + padding * 2;
+  const width = Math.max(8, maxX - minX + padding * 2);
+  const height = Math.max(8, maxY - minY + padding * 2);
   const radius = Math.min(width, height) * 0.1;
 
-  return `M ${x + radius},${y}
+  const path = `M ${x + radius},${y}
           L ${x + width - radius},${y}
           Q ${x + width},${y} ${x + width},${y + radius}
           L ${x + width},${y + height - radius}
@@ -160,6 +169,8 @@ function generatePathFromSeats(seats: ApiSeat[]): string {
           L ${x},${y + radius}
           Q ${x},${y} ${x + radius},${y}
           Z`.replace(/\s+/g, " ");
+
+  return { path, labelPosition: { x: x + width / 2, y: y + height / 2 } };
 }
 
 // Generate venue layout from actual seat data
@@ -185,18 +196,23 @@ export function generateVenueLayoutFromSeats(
   // Get the base layout for SVG templates and stage info
   const baseLayout = generateVenueLayout(tiers, category);
 
-  // Create a map of template names to their SVG paths and label positions
-  // Extract from the base layout (section IDs are like "tierId:template", using : as separator)
-  const templateMap = new Map<string, { path: string; labelPosition: { x: number; y: number } }>();
+  // Build tier-specific and global template maps (normalized keys) from base layout to avoid collisions
+  const templateByTier = new Map<string, { path: string; labelPosition: { x: number; y: number } }>();
+  const globalTemplateMap = new Map<string, { path: string; labelPosition: { x: number; y: number } }>();
   for (const section of baseLayout.sections) {
-    // Extract template part from section ID (e.g., "center" from "uuid:center")
     const parts = section.id.split(":");
-    const template = parts.length > 1 ? parts[parts.length - 1] : section.id;
-    templateMap.set(template, {
-      path: section.path,
-      labelPosition: section.labelPosition,
-    });
+    const tierId = parts.length > 1 ? parts[0] : "";
+    const template = parts.length > 1 ? parts.slice(1).join(":") : section.id;
+    const templateKey = template.trim().toLowerCase();
+    templateByTier.set(`${tierId}:${templateKey}`, { path: section.path, labelPosition: section.labelPosition });
+    // Keep the first seen global template as a fallback (do not override)
+    if (!globalTemplateMap.has(templateKey)) {
+      globalTemplateMap.set(templateKey, { path: section.path, labelPosition: section.labelPosition });
+    }
   }
+
+  // Track which base layout sections we've assigned as fallbacks to avoid duplicating identical paths
+  const usedFallbackSections = new Set<string>();
 
   // Build sections from seat data
   const sections: VenueSection[] = [];
@@ -205,7 +221,8 @@ export function generateVenueLayoutFromSeats(
   let colorIndex = 0;
   const colors = ["#E8567F", "#7C5CFC", "#38A3A5", "#F59E0B", "#6366F1"];
 
-  console.log("[transformer] Template map keys:", Array.from(templateMap.keys()));
+  console.log("[transformer] templateByTier keys:", Array.from(templateByTier.keys()).slice(0, 20));
+  console.log("[transformer] globalTemplateMap keys:", Array.from(globalTemplateMap.keys()));
   console.log("[transformer] Section seats map keys:", Array.from(sectionSeats.keys()));
 
   for (const [sectionId, seats] of sectionSeats) {
@@ -215,24 +232,31 @@ export function generateVenueLayoutFromSeats(
     const tierId = firstSeat.ticket_tier_id;
     const tier = tierMap.get(tierId);
 
-    // Extract tier name and template from sectionId (format: "TierName-Template")
-    // Note: Templates can be compound like "lower-east", so we need to rejoin
+    // Extract tier name and build candidate template suffixes from sectionId (e.g., "VIP-lower-east")
     const parts = sectionId.split("-");
     const tierName = tier?.name || parts[0];
 
-    // For templates like "lower-east", we need to extract after the tier name
-    // If sectionId is "Category 1-lower-east", template should be "lower-east"
-    let template = sectionId;
+    // Candidate suffixes: prefer removing the tier name prefix, then progressively shorter hyphen-suffixes
+    const candidates: string[] = [];
     if (parts.length > 1 && tierName) {
-      // Remove tier name prefix (with hyphen) to get template
       const tierPrefix = `${tierName}-`;
       if (sectionId.startsWith(tierPrefix)) {
-        template = sectionId.substring(tierPrefix.length);
-      } else {
-        // Fallback: use last part if we can't match tier name
-        template = parts[parts.length - 1];
+        candidates.push(sectionId.substring(tierPrefix.length));
       }
     }
+    // Add progressive suffixes (e.g., "lower-east", then "east")
+    for (let i = 1; i < parts.length; i++) {
+      candidates.push(parts.slice(i).join("-"));
+    }
+
+    // Ensure uniqueness and keep order
+    const seenCandidates = new Set<string>();
+    const uniqueCandidates = candidates.filter((c) => {
+      if (!c) return false;
+      if (seenCandidates.has(c)) return false;
+      seenCandidates.add(c);
+      return true;
+    });
 
     const price = tier ? tier.price_cents / 100 : 50;
 
@@ -245,15 +269,55 @@ export function generateVenueLayoutFromSeats(
       if (tierRank < 0) colorIndex++;
     }
 
-    // Get SVG template info
-    const hasTemplate = templateMap.has(template);
-    if (!hasTemplate) {
-      console.warn(`[transformer] Template "${template}" not found in map for section "${sectionId}"`);
+    // Resolve template info: prefer tier-specific mapping, fall back to global template, then try bounding-box from seats
+    let templateInfo: { path: string; labelPosition: { x: number; y: number } } | undefined;
+
+    const uniqueCandidatesNormalized = uniqueCandidates.map((c) => c.trim().toLowerCase());
+    for (const cand of uniqueCandidatesNormalized) {
+      // Try tier-specific first (tierId is the UUID used by generated base layout)
+      const tierKey = `${tierId}:${cand}`;
+      if (templateByTier.has(tierKey)) {
+        templateInfo = templateByTier.get(tierKey);
+        break;
+      }
+      // Fallback to global template
+      if (globalTemplateMap.has(cand)) {
+        templateInfo = globalTemplateMap.get(cand);
+        break;
+      }
     }
-    const templateInfo = templateMap.get(template) || {
-      path: "",
-      labelPosition: { x: 400, y: 300 },
-    };
+
+    // If still not found, try matching by any base layout suffix equality
+    if (!templateInfo) {
+      const baseMatch = baseLayout.sections.find((s) => {
+        const parts = s.id.split(":");
+        const suffix = parts.length > 1 ? parts.slice(1).join(":") : s.id;
+        const suffixKey = suffix.trim().toLowerCase();
+        return (
+          uniqueCandidatesNormalized.includes(suffixKey) ||
+          sectionId.toLowerCase().endsWith(suffixKey) ||
+          s.name.toLowerCase().includes(sectionId.toLowerCase())
+        );
+      });
+      if (baseMatch) {
+        templateInfo = { path: baseMatch.path, labelPosition: baseMatch.labelPosition };
+      }
+    }
+
+    // If still not found, generate a path from seat coords (if coords present)
+    if (!templateInfo) {
+      const generated = generatePathFromSeats(seats);
+      if (generated.path) {
+        templateInfo = { path: generated.path, labelPosition: generated.labelPosition };
+      }
+    }
+
+    // Final fallback: use first baseLayout template
+    if (!templateInfo) {
+      const fallback = baseLayout.sections[0];
+      templateInfo = { path: fallback?.path || "", labelPosition: fallback?.labelPosition || { x: 400, y: 300 } };
+      console.warn(`[transformer] Falling back for section "${sectionId}" to template "${templateInfo.labelPosition.x},${templateInfo.labelPosition.y}"`);
+    }
 
     // Group seats by row
     const rowMap = new Map<string, ApiSeat[]>();
@@ -288,14 +352,17 @@ export function generateVenueLayoutFromSeats(
     // Reserved seats are not yet confirmed, so they still count as available
     const availableCount = seats.filter(s => s.status === "available" || s.status === "reserved").length;
 
+    // If we generated a template from seat coords earlier, prefer that path
+    const generatedFromCoords = generatePathFromSeats(seats);
+
     sections.push({
       id: sectionId,
       name: tierName,
       tier: tierName,
       price,
       color: tierColors.get(tierName)!,
-      path: templateInfo.path,
-      labelPosition: templateInfo.labelPosition,
+      path: templateInfo.path || generatedFromCoords.path,
+      labelPosition: templateInfo.labelPosition || generatedFromCoords.labelPosition,
       totalSeats: seats.length,
       availableSeats: availableCount,
       rows: seatRows,

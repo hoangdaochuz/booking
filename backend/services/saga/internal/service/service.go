@@ -550,18 +550,17 @@ func (s *SagaService) reBuildSagaHandler(ctx context.Context, saga *domain.Saga,
 		},
 	}
 
-	
 	reduceAvailableSeatNumber := &domain.SagaStep{
-		ID: uuid.New(),
-		SagaID: saga.ID,
-		Name: string(sagapkg.UPDATE_AVAILABLE_SEAT_NUMBER),
-		Status: domain.SAGA_STEP_PENDING,
-		Order: 4,
+		ID:                    uuid.New(),
+		SagaID:                saga.ID,
+		Name:                  string(sagapkg.UPDATE_AVAILABLE_SEAT_NUMBER),
+		Status:                domain.SAGA_STEP_PENDING,
+		Order:                 4,
 		ShouldPauseForPayment: false,
 		Execute: func(ctx context.Context) error {
 			for _, item := range booking.Items {
 				err := updateAvailableSeatNumberProcessor.Execute.(func(ctx context.Context, req *eventv1.UpdateTicketAvailabilityRequest) error)(ctx, &eventv1.UpdateTicketAvailabilityRequest{
-					TierId:        item.TicketTierID.String(),
+					TierId:        item.TicketTierId,
 					QuantityDelta: -item.Quantity,
 					Mode:          "pessimistic",
 				})
@@ -575,7 +574,7 @@ func (s *SagaService) reBuildSagaHandler(ctx context.Context, saga *domain.Saga,
 		Compensate: func(ctx context.Context) error {
 			for _, item := range booking.Items {
 				err := updateAvailableSeatNumberProcessor.Execute.(func(ctx context.Context, req *eventv1.UpdateTicketAvailabilityRequest) error)(ctx, &eventv1.UpdateTicketAvailabilityRequest{
-					TierId:        item.TicketTierID.String(),
+					TierId:        item.TicketTierId,
 					QuantityDelta: item.Quantity,
 					Mode:          "pessimistic",
 				})
@@ -585,8 +584,7 @@ func (s *SagaService) reBuildSagaHandler(ctx context.Context, saga *domain.Saga,
 				}
 			}
 			return nil
-		}
-
+		},
 	}
 	// Reset saga steps
 	sagaHandler.FreeUpSteps()
@@ -601,7 +599,7 @@ func (s *SagaService) reBuildSagaHandler(ctx context.Context, saga *domain.Saga,
 	// .
 	// .
 	// .
-	err := s.repo.UpsertBatchSagaSteps(ctx, sagaHandler.GetSaga().Steps)
+	err = s.repo.UpsertBatchSagaSteps(ctx, sagaHandler.GetSaga().Steps)
 	if err != nil {
 		return nil, err
 	}
@@ -661,12 +659,12 @@ func (s *SagaService) HandleSagaAfterPaymentFailure(ctx context.Context, req jso
 		seatIds = append(seatIds, item.SeatIds...)
 	}
 
-	_, err := s.eventClient.UpdateBatchSeatStatus(ctx, &eventv1.UpdateBatchSeatStatusRequest{
-		SeatIds:   req.SeatIds,
+	_, err = s.eventClient.UpdateBatchSeatStatus(ctx, &eventv1.UpdateBatchSeatStatusRequest{
+		SeatIds:   seatIds,
 		Status:    "available",
 		BookingId: uuid.Nil.String(),
 	})
-	
+
 	if err != nil {
 		s.logger.Error("fail to update seats status fail", zap.Error(err))
 		return err

@@ -1,4 +1,5 @@
-CREATE TYPE payment_status AS ENUM ('pending', 'success', 'fail', 'cancel', 'timeout')
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE TYPE payment_status AS ENUM ('pending', 'success', 'fail', 'cancel', 'timeout');
 
 CREATE TABLE IF NOT EXISTS payments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -9,7 +10,7 @@ CREATE TABLE IF NOT EXISTS payments (
     price BIGINT NOT NULL,
     currency VARCHAR(50) NOT NULL,
     transaction_id UUID,
-    payment_method VARCHAR(50)
+    payment_method VARCHAR(50),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMPTZ

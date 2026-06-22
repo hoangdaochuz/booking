@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS seats (
     event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     ticket_tier_id UUID NOT NULL REFERENCES ticket_tiers(id) ON DELETE CASCADE,
     status seat_status NOT NULL DEFAULT 'available',
-    booking_id UUID REFERENCES bookings(id) ON DELETE SET NULL,
+    booking_id UUID NULL,
     order_id UUID NOT NULL DEFAULT uuid_generate_v4(),
     position JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
