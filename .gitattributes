@@ -1,0 +1,36 @@
+# Enforce LF line endings for common text and code files to avoid CRLF on Windows
+# After committing this file run:
+#   git add --renormalize .
+#   git commit -m "Normalize line endings"
+# Recommended: set `git config --global core.autocrlf false` on Windows.
+
+# Let Git detect text files automatically
+* text=auto
+
+# Force LF for common text/code/script files
+*.sh       text eol=lf
+*.bash     text eol=lf
+*.zsh      text eol=lf
+*.ksh      text eol=lf
+Makefile   text eol=lf
+Dockerfile text eol=lf
+*.dockerfile text eol=lf
+*.py       text eol=lf
+*.go       text eol=lf
+*.js       text eol=lf
+*.jsx      text eol=lf
+*.ts       text eol=lf
+*.tsx      text eol=lf
+*.json     text eol=lf
+*.yaml     text eol=lf
+*.yml      text eol=lf
+*.md       text eol=lf
+*.txt      text eol=lf
+*.env      text eol=lf
+*.sql      text eol=lf
+*.xml      text eol=lf
+*.html     text eol=lf
+*.css      text eol=lf
+*.scss     text eol=lf
+
+# Add other patterns as needed
