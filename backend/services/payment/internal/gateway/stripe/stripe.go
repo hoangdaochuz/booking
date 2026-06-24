@@ -106,7 +106,6 @@ func (s *StripePaymentGateway) HandleWebhookAfterPayment(ctx context.Context, re
 			return nil, err
 		}
 		s.logger.Info("Payment intent create successfully")
-		// TODO
 		msgKey := uuid.New().String()
 		payload := pkgtyped.PaymentEvent{
 			Id:      event.ID,
@@ -135,7 +134,6 @@ func (s *StripePaymentGateway) HandleWebhookAfterPayment(ctx context.Context, re
 			return nil, err
 		}
 		s.logger.Info("Payment intent create fail")
-		// TODO
 		msgKey := uuid.New().String()
 		payload := pkgtyped.PaymentEvent{
 			Id:      event.ID,

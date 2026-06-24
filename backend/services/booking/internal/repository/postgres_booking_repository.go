@@ -27,20 +27,40 @@ func (r *PostgresBookingRepository) Create(ctx context.Context, booking *domain.
 	defer tx.Rollback(ctx)
 
 	query := `INSERT INTO bookings (id, user_id, event_id, status, total_amount_cents, version, created_at)
-              VALUES ($1, $2, $3, $4, $5, $6, $7)`
+            VALUES ($1, $2, $3, $4, $5, $6, $7)`
 	_, err = tx.Exec(ctx, query, booking.ID, booking.UserID, booking.EventID,
 		string(booking.Status), booking.TotalAmountCents, booking.Version, booking.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("insert booking: %w", err)
 	}
 
-	for _, item := range booking.Items {
-		itemQuery := `INSERT INTO booking_items (id, booking_id, ticket_tier_id, quantity, unit_price_cents, seat_ids)
-                      VALUES ($1, $2, $3, $4, $5, $6)`
-		_, err = tx.Exec(ctx, itemQuery, item.ID, booking.ID, item.TicketTierID, item.Quantity, item.UnitPriceCents, item.SeatIDs)
-		if err != nil {
-			return fmt.Errorf("insert booking item: %w", err)
+	numFieldStepUpdate := 6
+	insertValSQL := ""
+	bookingItemFieldValUpdate := []interface{}{}
+	for stepIdx, item := range booking.Items {
+		delta := stepIdx * numFieldStepUpdate
+		for index := range numFieldStepUpdate {
+			switch index {
+			case numFieldStepUpdate - 1:
+				insertValSQL += fmt.Sprintf(`$%d)`, delta+index+1)
+			case 0:
+				insertValSQL += fmt.Sprintf(`($%d, `, delta+index+1)
+			default:
+				insertValSQL += fmt.Sprintf(`$%d, `, delta+index+1)
+			}
 		}
+		if stepIdx < len(booking.Items)-1 {
+			insertValSQL += ",\n"
+		}
+		bookingItemFieldValUpdate = append(bookingItemFieldValUpdate, item.ID, booking.ID, item.TicketTierID, item.Quantity, item.UnitPriceCents, item.SeatIDs)
+	}
+
+	itemQuery := `INSERT INTO booking_items (id, booking_id, ticket_tier_id, quantity, unit_price_cents, seat_ids)
+									VALUES
+									` + insertValSQL
+	_, err = tx.Exec(ctx, itemQuery, bookingItemFieldValUpdate...)
+	if err != nil {
+		return fmt.Errorf("insert booking item: %w", err)
 	}
 
 	return tx.Commit(ctx)
@@ -94,7 +114,7 @@ func (r *PostgresBookingRepository) ListByUserID(ctx context.Context, userID uui
 	}
 
 	query := `SELECT id, user_id, event_id, status, total_amount_cents, version, created_at
-              FROM bookings WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
+            FROM bookings WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
 	rows, err := r.pool.Query(ctx, query, userID, pageSize, offset)
 	if err != nil {
 		return nil, 0, err

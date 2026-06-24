@@ -331,7 +331,6 @@ func (s *SagaService) StartOrderSaga(ctx context.Context, req *StartOrderSagaReq
 }
 
 func (s *SagaService) HandleSagaAferPaymentSuccess(ctx context.Context, req json.RawMessage) error {
-	// TODO
 	var paymentEvent pkgtyped.PaymentEvent
 	err := json.Unmarshal(req, &paymentEvent)
 	if err != nil {
@@ -603,7 +602,6 @@ func (s *SagaService) reBuildSagaHandler(ctx context.Context, saga *domain.Saga,
 }
 
 func (s *SagaService) HandleSagaAfterPaymentFailure(ctx context.Context, req json.RawMessage) error {
-	// TODO
 	s.logger.Info("Handling Saga after payment process fail")
 	var paymentEvent pkgtyped.PaymentEvent
 	err := json.Unmarshal(req, &paymentEvent)
@@ -611,17 +609,11 @@ func (s *SagaService) HandleSagaAfterPaymentFailure(ctx context.Context, req jso
 		s.logger.Sugar().Errorf("fail to unmarshal payment event", zap.Error(err))
 		return fmt.Errorf("fail to unmarshal payment event: %w", err)
 	}
-
-	// stripeEventData := paymentEvent.Data
-	// var paymentIntent stripe.PaymentIntent
-	// err = json.Unmarshal(stripeEventData.Raw, &paymentIntent)
-	// if err != nil {
-	// 	s.logger.Sugar().Errorf("fail to unmarshal payment intent", zap.Error(err))
-	// 	return fmt.Errorf("fail to unmarshal payment intent: %w", err)
-	// }
+	paymentDataObj := paymentEvent.Data.Object
+	paymentIntentId := paymentDataObj["id"].(string)
 
 	_, err = s.paymentClient.UpdatePaymentStatusByPaymentIntentId(ctx, &paymentv1.UpdatePaymentStatusByPaymentIntentIdReq{
-		PaymentIntentId: paymentEvent.Id,
+		PaymentIntentId: paymentIntentId,
 		Status:          "fail",
 	})
 	if err != nil {
@@ -630,13 +622,21 @@ func (s *SagaService) HandleSagaAfterPaymentFailure(ctx context.Context, req jso
 	}
 
 	payment, err := s.paymentClient.GetPaymentByPaymentIntentId(ctx, &paymentv1.GetPaymentByIntentIdReq{
-		PaymentIntentId: paymentEvent.Id,
+		PaymentIntentId: paymentIntentId,
 	})
 	if err != nil {
 		return err
 	}
 	if payment == nil {
 		return fmt.Errorf("the payment not found")
+	}
+	// Update booking status to failed
+	_, err = s.bookingClient.UpdateBookingStatusById(ctx, &bookingv1.UpdateBookingStatusByIdReq{
+		Id:     payment.BookingId,
+		Status: "FAILED",
+	})
+	if err != nil {
+		return fmt.Errorf("fail to update booking status to FAILED: %w", err)
 	}
 
 	booking, err := s.bookingClient.GetBooking(ctx, &bookingv1.GetBookingRequest{

@@ -28,7 +28,7 @@ func NewPostgresPaymentRepository(pool *pgxpool.Pool) *PostgresPaymentRepository
 
 func (p *PostgresPaymentRepository) CreatePayment(ctx context.Context, payment *domain.Payment) error {
 	query := `INSERT INTO payments (id, user_id, booking_id, order_id, status, price, currency, transaction_id, payment_method, created_at)
-			  VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);`
+			VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);`
 
 	bookingId := uuid.Nil
 	orderId := uuid.Nil
@@ -91,8 +91,8 @@ func (p *PostgresPaymentRepository) GetListPaymentsByCondition(ctx context.Conte
 
 func (p *PostgresPaymentRepository) UpdatePaymentStatus(ctx context.Context, ID uuid.UUID, status domain.PaymentStatus) error {
 	query := `UPDATE payments
-			  SET status = $1
-			  WHERE id = $2;`
+			SET status = $1
+			WHERE id = $2;`
 
 	_, err := p.pool.Exec(ctx, query, string(status), ID)
 	return err
@@ -100,8 +100,8 @@ func (p *PostgresPaymentRepository) UpdatePaymentStatus(ctx context.Context, ID 
 
 func (p *PostgresPaymentRepository) UpdatePaymentStatusByPaymentIntentId(ctx context.Context, paymentIntentId string, status domain.PaymentStatus) error {
 	query := `UPDATE payments
-			  SET status = $1
-			  WHERE payment_intent_id = $2;`
+			SET status = $1
+			WHERE payment_intent_id = $2;`
 
 	_, err := p.pool.Exec(ctx, query, string(status), paymentIntentId)
 	return err
@@ -158,8 +158,8 @@ func (p *PostgresPaymentRepository) UpdatePayment(ctx context.Context, payment *
 	}
 
 	query := `UPDATE payments
-			  SET booking_id = $2, order_id = $3, status = $4, price = $5, currency = $6, transaction_id = $7, payment_method = $8, updated_at = $9, payment_intent_id = $10
-			  WHERE id = $1`
+			SET booking_id = $2, order_id = $3, status = $4, price = $5, currency = $6, transaction_id = $7, payment_method = $8, updated_at = $9, payment_intent_id = $10
+			WHERE id = $1`
 	_, err := p.pool.Exec(ctx, query, payment.ID, bookingId, orderId, string(payment.Status), payment.Price, payment.Currency, transactionId, payment.PaymentMethod, time.Now(), payment.PaymentIntentId)
 	return err
 }

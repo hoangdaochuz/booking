@@ -24,7 +24,7 @@ func NewPostgresUserRepository(pool *pgxpool.Pool) *PostgresUserRepository {
 
 func (r *PostgresUserRepository) Create(ctx context.Context, user *domain.User) error {
 	query := `INSERT INTO users (id, email, password_hash, name, role, created_at, updated_at)
-              VALUES ($1, $2, $3, $4, $5, $6, $7)`
+            VALUES ($1, $2, $3, $4, $5, $6, $7)`
 	_, err := r.pool.Exec(ctx, query,
 		user.ID, user.Email, user.PasswordHash, user.Name, user.Role, user.CreatedAt, user.UpdatedAt)
 	if err != nil {

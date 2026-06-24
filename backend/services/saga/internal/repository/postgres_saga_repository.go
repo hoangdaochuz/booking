@@ -29,20 +29,40 @@ func (s *SagaRepository) Create(ctx context.Context, saga *domain.Saga) error {
 	}
 	defer tx.Rollback(ctx)
 	query := `INSERT INTO sagas(id, booking_id, name, status, current_step_index, created_at)
-			  VALUES ($1, $2, $3, $4, $5, $6)`
+			VALUES ($1, $2, $3, $4, $5, $6)`
 	_, err = tx.Exec(ctx, query, saga.ID, saga.BookingID, saga.Name, string(saga.Status), saga.CurrentStepIndex, time.Now())
 	if err != nil {
 		return fmt.Errorf("Insert sagas fail: %w", err)
 	}
-	// [TODO]
-	// Should only have 1 command for this one instead of loop --> It will create/use many connection to database --> cause database overhead when high trafic
-	for _, step := range saga.Steps {
-		query = `INSERT INTO saga_steps(id , saga_id, name, status, "order", should_pause_for_payment)
-				 VALUES($1, $2, $3, $4, $5, $6)`
-		_, err = tx.Exec(ctx, query, step.ID, step.SagaID, step.Name, string(step.Status), step.Order, step.ShouldPauseForPayment)
-		if err != nil {
-			return fmt.Errorf("Fail to insert into saga_steps: %w", err)
+
+	numFieldStepUpdate := 6
+	insertValSQL := ""
+	stepFieldValUpdate := []interface{}{}
+	for stepIdx, step := range saga.Steps {
+		delta := stepIdx * numFieldStepUpdate
+		for index := range numFieldStepUpdate {
+			switch index {
+			case numFieldStepUpdate - 1:
+				insertValSQL += fmt.Sprintf(`$%d)`, delta+index+1)
+			case 0:
+				insertValSQL += fmt.Sprintf(`($%d, `, delta+index+1)
+			default:
+				insertValSQL += fmt.Sprintf(`$%d, `, delta+index+1)
+			}
 		}
+		if stepIdx < len(saga.Steps)-1 {
+			insertValSQL += ",\n"
+		}
+		stepFieldValUpdate = append(stepFieldValUpdate, step.ID, step.SagaID, step.Name, string(step.Status), step.Order, step.ShouldPauseForPayment)
+	}
+
+	query = `INSERT INTO saga_steps(id , saga_id, name, status, "order", should_pause_for_payment)
+			VALUES
+			` + insertValSQL
+	fmt.Println("Saga create query: " + query)
+	_, err = tx.Exec(ctx, query, stepFieldValUpdate...)
+	if err != nil {
+		return fmt.Errorf("Fail to insert into saga_steps: %w", err)
 	}
 	return tx.Commit(ctx)
 }
@@ -54,27 +74,48 @@ func (s *SagaRepository) UpsertBatchSagaSteps(ctx context.Context, steps []domai
 	}
 	defer tx.Rollback(ctx)
 
-	// [TODO]
-	// Should only have 1 command for this one instead of loop --> It will create/use many connection to database --> cause database overhead when high trafic
-	for _, step := range steps {
-		query := `INSERT INTO saga_steps(id , saga_id, name, status, "order", should_pause_for_payment)
-				 VALUES($1, $2, $3, $4, $5, $6)
-				 ON CONFLICT (id)
-				 DO UPDATE SET
-				 	status = $7
-				 `
-		_, err = tx.Exec(ctx, query, step.ID, step.SagaID, step.Name, string(step.Status), step.Order, step.ShouldPauseForPayment, string(step.Status))
-		if err != nil {
-			return fmt.Errorf("Fail to insert into saga_steps: %w", err)
+	numFieldStepUpdate := 6
+	insertValSQL := ""
+	stepFieldValUpdate := []interface{}{}
+	for stepIdx, step := range steps {
+		delta := stepIdx * numFieldStepUpdate
+		for index := range numFieldStepUpdate {
+			switch index {
+			case numFieldStepUpdate - 1:
+				insertValSQL += fmt.Sprintf(`$%d)`, delta+index+1)
+			case 0:
+				insertValSQL += fmt.Sprintf(`($%d, `, delta+index+1)
+			default:
+				insertValSQL += fmt.Sprintf(`$%d, `, delta+index+1)
+			}
 		}
+		if stepIdx < len(steps)-1 {
+			insertValSQL += ",\n"
+		}
+		stepFieldValUpdate = append(stepFieldValUpdate, step.ID, step.SagaID, step.Name, string(step.Status), step.Order, step.ShouldPauseForPayment)
 	}
+	// stepFieldValUpdate = append(stepFieldValUpdate, string(step.Status))
+
+	query := `INSERT INTO saga_steps(id , saga_id, name, status, "order", should_pause_for_payment)
+			VALUES
+			` + insertValSQL + `
+			ON CONFLICT (id)
+			DO UPDATE SET
+			status = EXCLUDED.status`
+
+	fmt.Println("UpsertBatchSagaSteps query: " + query)
+	_, err = tx.Exec(ctx, query, stepFieldValUpdate...)
+	if err != nil {
+		return fmt.Errorf("Fail to insert into saga_steps: %w", err)
+	}
+
 	return tx.Commit(ctx)
 }
 
 func (s *SagaRepository) GetSagaById(ctx context.Context, id uuid.UUID) (*domain.Saga, error) {
 	saga := domain.Saga{}
 	query := `SELECT s.id, s.booking_id, s.name, s.status, s.current_step_index
-			 FROM sagas as s WHERE s.id = $1`
+			FROM sagas as s WHERE s.id = $1`
 	var sagaStatus string
 	err := s.pool.QueryRow(ctx, query, id).Scan(&saga.ID, &saga.BookingID, &saga.Name, &sagaStatus, &saga.CurrentStepIndex)
 	if err != nil {

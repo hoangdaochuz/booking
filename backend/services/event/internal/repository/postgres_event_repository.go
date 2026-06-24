@@ -38,17 +38,35 @@ func (r *PostgresEventRepository) Create(ctx context.Context, event *domain.Even
 		return fmt.Errorf("insert event: %w", err)
 	}
 
-	for _, tier := range event.Tiers {
-		tierQuery := `INSERT INTO ticket_tiers (id, event_id, name, price_cents, total_quantity, available_quantity, version, created_at)
-                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-		_, err = tx.Exec(ctx, tierQuery,
-			tier.ID, event.ID, tier.Name, tier.PriceCents, tier.TotalQuantity,
-			tier.AvailableQuantity, 1, tier.CreatedAt)
-		if err != nil {
-			return fmt.Errorf("insert tier: %w", err)
+	numFieldStepUpdate := 8
+	insertValSQL := ""
+	tierFieldValUpdate := []interface{}{}
+	for tierIdx, tier := range event.Tiers {
+		delta := tierIdx * numFieldStepUpdate
+		for index := range numFieldStepUpdate {
+			switch index {
+			case numFieldStepUpdate - 1:
+				insertValSQL += fmt.Sprintf(`$%d)`, delta+index+1)
+			case 0:
+				insertValSQL += fmt.Sprintf(`($%d, `, delta+index+1)
+			default:
+				insertValSQL += fmt.Sprintf(`$%d, `, delta+index+1)
+			}
 		}
+		if tierIdx < len(event.Tiers)-1 {
+			insertValSQL += ",\n"
+		}
+		tierFieldValUpdate = append(tierFieldValUpdate, tier.ID, event.ID, tier.Name, tier.PriceCents, tier.TotalQuantity,
+			tier.AvailableQuantity, 1, tier.CreatedAt)
 	}
 
+	tierQuery := `INSERT INTO ticket_tiers (id, event_id, name, price_cents, total_quantity, available_quantity, version, created_at)
+										VALUES
+										` + insertValSQL
+	_, err = tx.Exec(ctx, tierQuery, tierFieldValUpdate...)
+	if err != nil {
+		return fmt.Errorf("insert tier: %w", err)
+	}
 	return tx.Commit(ctx)
 }
 
@@ -257,8 +275,8 @@ func (r *PostgresTicketTierRepository) UpdateAvailabilityPessimistic(ctx context
 	tier := &domain.TicketTier{}
 	err = tx.QueryRow(ctx,
 		`UPDATE ticket_tiers SET available_quantity = GREATEST(0, available_quantity + $2), version = version + 1
-         WHERE id = $1
-         RETURNING id, event_id, name, price_cents, total_quantity, available_quantity, version, created_at`,
+		WHERE id = $1
+		RETURNING id, event_id, name, price_cents, total_quantity, available_quantity, version, created_at`,
 		tierID, delta).Scan(
 		&tier.ID, &tier.EventID, &tier.Name, &tier.PriceCents,
 		&tier.TotalQuantity, &tier.AvailableQuantity, &tier.Version, &tier.CreatedAt)
