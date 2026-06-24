@@ -458,8 +458,8 @@ func (r *PostgresSeatRepository) UpdateStatus(ctx context.Context, seatID uuid.U
 	var positionJSON []byte
 	var dbBookingID, dbOrderID uuid.UUID
 	query := `UPDATE seats SET status = $2, booking_id = $3, updated_at = NOW()
-              WHERE id = $1
-              RETURNING id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at`
+			WHERE id = $1
+			RETURNING id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at`
 	err = tx.QueryRow(ctx, query, seatID, status, bookingIDValue).Scan(
 		&seat.ID, &seat.EventID, &seat.TicketTierID, &seat.Status,
 		&dbBookingID, &dbOrderID, &positionJSON, &seat.CreatedAt, &seat.UpdatedAt)
@@ -560,12 +560,12 @@ func (r *PostgresSeatRepository) UpdateStatusBatch(ctx context.Context, seatIDs 
 	var currentSeatsStatus []domain.SeatStatus
 	for rows.Next() {
 		var id uuid.UUID
-		var status domain.SeatStatus
-		if err := rows.Scan(&id, &status); err != nil {
+		var currStatus domain.SeatStatus
+		if err := rows.Scan(&id, &currStatus); err != nil {
 			return fmt.Errorf("scan locked seats: %w", err)
 		}
 		lockedIDs = append(lockedIDs, id)
-		if len(currentSeatsStatus) > 1 && currentSeatsStatus[len(currentSeatsStatus)-1] != status {
+		if len(currentSeatsStatus) > 1 && currentSeatsStatus[len(currentSeatsStatus)-1] != currStatus {
 			return fmt.Errorf("Exist seat has been inconsistent status")
 		}
 		currentSeatsStatus = append(currentSeatsStatus, status)
@@ -573,11 +573,6 @@ func (r *PostgresSeatRepository) UpdateStatusBatch(ctx context.Context, seatIDs 
 
 	if len(lockedIDs) != len(seatIDs) {
 		return ErrNotFound
-	}
-
-	// Prevent double booking: can only update from available to reserved/booked
-	if currentSeatsStatus[0] != domain.SeatStatusAvailable && status != domain.SeatStatusAvailable {
-		return ErrSeatNotAvailable
 	}
 
 	// Convert bookingID pointer to uuid.Nil for nil pointer

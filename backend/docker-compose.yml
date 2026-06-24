@@ -275,6 +275,7 @@ services:
       DATABASE_URL: postgres://ticketbox:${POSTGRES_PASSWORD:-ticketbox_secret}@postgres-saga:5432/ticketbox_saga?sslmode=disable
       KAFKA_BROKERS: kafka:29092
       EVENT_SERVICE_ADDR: event-service:50052
+      BOOKING_SERVICE_ADDR: booking-service:50053
       REDIS_URL: redis://redis:6379
       PAYMENT_SERVICE_ADDR: payment-service:50054
     depends_on:

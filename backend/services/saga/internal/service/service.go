@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/stripe/stripe-go/v84"
 	bookingv1 "github.com/ticketbox/pkg/proto/booking/v1"
 	eventv1 "github.com/ticketbox/pkg/proto/event/v1"
 	paymentv1 "github.com/ticketbox/pkg/proto/payment/v1"
@@ -201,7 +200,7 @@ func (s *SagaService) InitializeSagaHandler(ctx context.Context, req *StartOrder
 			paymentRes, err := paymentProcessor.Execute.(func(ctx context.Context, req *paymentv1.CreatePaymentRequest) (*paymentv1.CreatePaymentResponse, error))(ctx, &paymentv1.CreatePaymentRequest{
 				UserId:    req.UserId,
 				BookingId: req.BookingId,
-				Price:     int32(req.TotalCents) / 10, // Convert to USD
+				Price:     int32(req.TotalCents), // Convert to USD
 				Currency:  "usd",
 				// PaymentMethod: ,
 				UserEmail: "nhkhai2805@gmail.com", // update later
@@ -339,16 +338,11 @@ func (s *SagaService) HandleSagaAferPaymentSuccess(ctx context.Context, req json
 		s.logger.Sugar().Errorf("fail to unmarshal payment event", zap.Error(err))
 		return fmt.Errorf("fail to unmarshal payment event: %w", err)
 	}
-	stripeEventData := paymentEvent.Data
-	var paymentIntent stripe.PaymentIntent
-	err = json.Unmarshal(stripeEventData.Raw, &paymentIntent)
-	if err != nil {
-		s.logger.Sugar().Errorf("fail to unmarshal payment intent", zap.Error(err))
-		return fmt.Errorf("fail to unmarshal payment intent: %w", err)
-	}
-
+	paymentDataObj := paymentEvent.Data.Object
+	paymentIntentId := paymentDataObj["id"].(string)
+	s.logger.Sugar().Info("Payment Intent id: ", paymentIntentId)
 	_, err = s.paymentClient.UpdatePaymentStatusByPaymentIntentId(ctx, &paymentv1.UpdatePaymentStatusByPaymentIntentIdReq{
-		PaymentIntentId: paymentEvent.Id,
+		PaymentIntentId: paymentIntentId,
 		Status:          "success",
 	})
 	if err != nil {
@@ -357,7 +351,7 @@ func (s *SagaService) HandleSagaAferPaymentSuccess(ctx context.Context, req json
 	}
 	// Start saga again
 	// if saga fail --> roll back payment
-	err = s.ContinueSagaAfterPaymentSuccess(ctx, paymentEvent.Id)
+	err = s.ContinueSagaAfterPaymentSuccess(ctx, paymentIntentId)
 	if err != nil {
 		s.logger.Sugar().Error("fail to continue saga after payment success", zap.Error(err))
 		return fmt.Errorf("fail to continue saga after payment success: %w", err)
@@ -382,13 +376,14 @@ func (s *SagaService) ContinueSagaAfterPaymentSuccess(ctx context.Context, payme
 		return err
 	}
 	saga, err := s.repo.GetSagaByBookingId(ctx, bookingUUID)
+	s.logger.Sugar().Infof("Saga ID: %s, Current Step Index: %d, steps: %d", saga.ID.String(), saga.CurrentStepIndex, len(saga.Steps))
 	if err != nil {
 		return err
 	}
 
 	sagaHanlder, err := s.reBuildSagaHandler(ctx, saga, payment)
 	if err != nil {
-		return fmt.Errorf("fail to re-build saga handler after payment success")
+		return fmt.Errorf("fail to re-build saga handler after payment success: %w", err)
 	}
 	err = sagaHanlder.Execute(ctx, saga.CurrentStepIndex+1)
 	if err != nil {
