@@ -140,7 +140,7 @@ func (s *SagaRepository) UpdateSaga(ctx context.Context, saga *domain.Saga, step
 func (s *SagaRepository) GetSagaByBookingId(ctx context.Context, id uuid.UUID) (*domain.Saga, error) {
 	saga := domain.Saga{}
 	query := `SELECT s.id, s.booking_id, s.name, s.status, s.current_step_index
-			 FROM sagas as s WHERE s.booking_id = $1`
+			FROM sagas as s WHERE s.booking_id = $1`
 	var sagaStatus string
 	err := s.pool.QueryRow(ctx, query, id).Scan(&saga.ID, &saga.BookingID, &saga.Name, &sagaStatus, &saga.CurrentStepIndex)
 	if err != nil {
@@ -152,7 +152,7 @@ func (s *SagaRepository) GetSagaByBookingId(ctx context.Context, id uuid.UUID) (
 	saga.Status = domain.SagaStatus(sagaStatus)
 
 	subQuery := `SELECT id, saga_id, name, executed_at, compensated_at, status, "order", should_pause_for_payment
-				FROM saga_steps WHERE id = $1`
+				FROM saga_steps WHERE saga_id = $1`
 
 	rows, err := s.pool.Query(ctx, subQuery, saga.ID)
 	if err != nil {

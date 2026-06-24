@@ -256,7 +256,7 @@ func (r *PostgresTicketTierRepository) UpdateAvailabilityPessimistic(ctx context
 
 	tier := &domain.TicketTier{}
 	err = tx.QueryRow(ctx,
-		`UPDATE ticket_tiers SET available_quantity = available_quantity + $2, version = version + 1
+		`UPDATE ticket_tiers SET available_quantity = GREATEST(0, available_quantity + $2), version = version + 1
          WHERE id = $1
          RETURNING id, event_id, name, price_cents, total_quantity, available_quantity, version, created_at`,
 		tierID, delta).Scan(
@@ -278,7 +278,7 @@ func (r *PostgresTicketTierRepository) UpdateBatchTicketAvailability(ctx context
 // Naive -- no locking at all (WILL cause double booking under load!)
 func (r *PostgresTicketTierRepository) UpdateAvailabilityNoLock(ctx context.Context, tierID uuid.UUID, delta int32) error {
 	_, err := r.pool.Exec(ctx,
-		`UPDATE ticket_tiers SET available_quantity = available_quantity + $2 WHERE id = $1`,
+		`UPDATE ticket_tiers SET available_quantity = GREATEST(0, available_quantity + $2) WHERE id = $1`,
 		tierID, delta)
 	return err
 }
@@ -458,8 +458,8 @@ func (r *PostgresSeatRepository) UpdateStatus(ctx context.Context, seatID uuid.U
 	var positionJSON []byte
 	var dbBookingID, dbOrderID uuid.UUID
 	query := `UPDATE seats SET status = $2, booking_id = $3, updated_at = NOW()
-              WHERE id = $1
-              RETURNING id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at`
+			WHERE id = $1
+			RETURNING id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at`
 	err = tx.QueryRow(ctx, query, seatID, status, bookingIDValue).Scan(
 		&seat.ID, &seat.EventID, &seat.TicketTierID, &seat.Status,
 		&dbBookingID, &dbOrderID, &positionJSON, &seat.CreatedAt, &seat.UpdatedAt)
@@ -560,12 +560,12 @@ func (r *PostgresSeatRepository) UpdateStatusBatch(ctx context.Context, seatIDs 
 	var currentSeatsStatus []domain.SeatStatus
 	for rows.Next() {
 		var id uuid.UUID
-		var status domain.SeatStatus
-		if err := rows.Scan(&id, &status); err != nil {
+		var currStatus domain.SeatStatus
+		if err := rows.Scan(&id, &currStatus); err != nil {
 			return fmt.Errorf("scan locked seats: %w", err)
 		}
 		lockedIDs = append(lockedIDs, id)
-		if len(currentSeatsStatus) > 1 && currentSeatsStatus[len(currentSeatsStatus)-1] != status {
+		if len(currentSeatsStatus) > 1 && currentSeatsStatus[len(currentSeatsStatus)-1] != currStatus {
 			return fmt.Errorf("Exist seat has been inconsistent status")
 		}
 		currentSeatsStatus = append(currentSeatsStatus, status)
@@ -573,11 +573,6 @@ func (r *PostgresSeatRepository) UpdateStatusBatch(ctx context.Context, seatIDs 
 
 	if len(lockedIDs) != len(seatIDs) {
 		return ErrNotFound
-	}
-
-	// Prevent double booking: can only update from available to reserved/booked
-	if currentSeatsStatus[0] != domain.SeatStatusAvailable && status != domain.SeatStatusAvailable {
-		return ErrSeatNotAvailable
 	}
 
 	// Convert bookingID pointer to uuid.Nil for nil pointer

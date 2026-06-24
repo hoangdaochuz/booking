@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/stripe/stripe-go/v84"
 	bookingv1 "github.com/ticketbox/pkg/proto/booking/v1"
 	eventv1 "github.com/ticketbox/pkg/proto/event/v1"
 	paymentv1 "github.com/ticketbox/pkg/proto/payment/v1"
@@ -123,6 +122,11 @@ func (s *SagaService) UpdateBookingStatus(ctx context.Context, req *bookingv1.Up
 	return err
 }
 
+func (s *SagaService) UpdateAvailableSeatNumber(ctx context.Context, req *eventv1.UpdateTicketAvailabilityRequest) error {
+	_, err := s.eventClient.UpdateTicketAvailability(ctx, req)
+	return err
+}
+
 func (s *SagaService) InitializeSagaHandler(ctx context.Context, req *StartOrderSagaRequest) (*registry.SagaHandler, error) {
 	sagaId := uuid.New()
 	bookingUUID, _ := uuid.Parse(req.BookingId)
@@ -196,7 +200,7 @@ func (s *SagaService) InitializeSagaHandler(ctx context.Context, req *StartOrder
 			paymentRes, err := paymentProcessor.Execute.(func(ctx context.Context, req *paymentv1.CreatePaymentRequest) (*paymentv1.CreatePaymentResponse, error))(ctx, &paymentv1.CreatePaymentRequest{
 				UserId:    req.UserId,
 				BookingId: req.BookingId,
-				Price:     int32(req.TotalCents) / 10, // Convert to USD
+				Price:     int32(req.TotalCents), // Convert to USD
 				Currency:  "usd",
 				// PaymentMethod: ,
 				UserEmail: "nhkhai2805@gmail.com", // update later
@@ -334,16 +338,11 @@ func (s *SagaService) HandleSagaAferPaymentSuccess(ctx context.Context, req json
 		s.logger.Sugar().Errorf("fail to unmarshal payment event", zap.Error(err))
 		return fmt.Errorf("fail to unmarshal payment event: %w", err)
 	}
-	stripeEventData := paymentEvent.Data
-	var paymentIntent stripe.PaymentIntent
-	err = json.Unmarshal(stripeEventData.Raw, &paymentIntent)
-	if err != nil {
-		s.logger.Sugar().Errorf("fail to unmarshal payment intent", zap.Error(err))
-		return fmt.Errorf("fail to unmarshal payment intent: %w", err)
-	}
-
+	paymentDataObj := paymentEvent.Data.Object
+	paymentIntentId := paymentDataObj["id"].(string)
+	s.logger.Sugar().Info("Payment Intent id: ", paymentIntentId)
 	_, err = s.paymentClient.UpdatePaymentStatusByPaymentIntentId(ctx, &paymentv1.UpdatePaymentStatusByPaymentIntentIdReq{
-		PaymentIntentId: paymentEvent.Id,
+		PaymentIntentId: paymentIntentId,
 		Status:          "success",
 	})
 	if err != nil {
@@ -352,7 +351,7 @@ func (s *SagaService) HandleSagaAferPaymentSuccess(ctx context.Context, req json
 	}
 	// Start saga again
 	// if saga fail --> roll back payment
-	err = s.ContinueSagaAfterPaymentSuccess(ctx, paymentEvent.Id)
+	err = s.ContinueSagaAfterPaymentSuccess(ctx, paymentIntentId)
 	if err != nil {
 		s.logger.Sugar().Error("fail to continue saga after payment success", zap.Error(err))
 		return fmt.Errorf("fail to continue saga after payment success: %w", err)
@@ -377,27 +376,14 @@ func (s *SagaService) ContinueSagaAfterPaymentSuccess(ctx context.Context, payme
 		return err
 	}
 	saga, err := s.repo.GetSagaByBookingId(ctx, bookingUUID)
+	s.logger.Sugar().Infof("Saga ID: %s, Current Step Index: %d, steps: %d", saga.ID.String(), saga.CurrentStepIndex, len(saga.Steps))
 	if err != nil {
 		return err
 	}
-	booking, err := s.bookingClient.GetBooking(ctx, &bookingv1.GetBookingRequest{
-		BookingId: payment.BookingId,
-	})
-	if err != nil {
-		return err
-	}
-	if booking == nil {
-		return fmt.Errorf("the booking not found")
-	}
 
-	seatIds := []string{}
-	for _, item := range booking.Items {
-		seatIds = append(seatIds, item.SeatIds...)
-	}
-
-	sagaHanlder, err := s.reBuildSagaHandler(ctx, saga, payment, seatIds)
+	sagaHanlder, err := s.reBuildSagaHandler(ctx, saga, payment)
 	if err != nil {
-		return fmt.Errorf("fail to re-build saga handler after payment success")
+		return fmt.Errorf("fail to re-build saga handler after payment success: %w", err)
 	}
 	err = sagaHanlder.Execute(ctx, saga.CurrentStepIndex+1)
 	if err != nil {
@@ -406,8 +392,23 @@ func (s *SagaService) ContinueSagaAfterPaymentSuccess(ctx context.Context, payme
 	return nil
 }
 
-func (s *SagaService) reBuildSagaHandler(ctx context.Context, saga *domain.Saga, payment *paymentv1.PaymentEntry, seatIds []string) (*registry.SagaHandler, error) {
+func (s *SagaService) reBuildSagaHandler(ctx context.Context, saga *domain.Saga, payment *paymentv1.PaymentEntry) (*registry.SagaHandler, error) {
 	s.logger.Sugar().Infof("Starting re-build saga after payment success...")
+	booking, err := s.bookingClient.GetBooking(ctx, &bookingv1.GetBookingRequest{
+		BookingId: payment.BookingId,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if booking == nil {
+		return nil, fmt.Errorf("the booking not found")
+	}
+
+	seatIds := []string{}
+	for _, item := range booking.Items {
+		seatIds = append(seatIds, item.SeatIds...)
+	}
+
 	sagaHandler := registry.NewSagaHandler(saga, s.repo, s.logger)
 	reservedSeatProcessor := s.sagaStepRegistry.Get(string(sagapkg.RESERVED_SEAT_STEP))
 	if reservedSeatProcessor == nil {
@@ -427,6 +428,11 @@ func (s *SagaService) reBuildSagaHandler(ctx context.Context, saga *domain.Saga,
 	updateBookingStatusProcessor := s.sagaStepRegistry.Get(string(sagapkg.UPDATE_BOOKING_STATUS_CONFIRMED))
 	if updateBookingStatusProcessor == nil {
 		return nil, fmt.Errorf("fail to get processor from saga step registry for step %s", sagapkg.UPDATE_BOOKING_STATUS_CONFIRMED)
+	}
+
+	updateAvailableSeatNumberProcessor := s.sagaStepRegistry.Get(string(sagapkg.UPDATE_AVAILABLE_SEAT_NUMBER))
+	if updateAvailableSeatNumberProcessor == nil {
+		return nil, fmt.Errorf("fail to get processor from saga step registry for step %s", sagapkg.UPDATE_AVAILABLE_SEAT_NUMBER)
 	}
 	reservedSeatStep := &domain.SagaStep{
 		ID:                    saga.Steps[0].ID,
@@ -538,20 +544,57 @@ func (s *SagaService) reBuildSagaHandler(ctx context.Context, saga *domain.Saga,
 			return nil
 		},
 	}
+
+	reduceAvailableSeatNumber := &domain.SagaStep{
+		ID:                    uuid.New(),
+		SagaID:                saga.ID,
+		Name:                  string(sagapkg.UPDATE_AVAILABLE_SEAT_NUMBER),
+		Status:                domain.SAGA_STEP_PENDING,
+		Order:                 4,
+		ShouldPauseForPayment: false,
+		Execute: func(ctx context.Context) error {
+			for _, item := range booking.Items {
+				err := updateAvailableSeatNumberProcessor.Execute.(func(ctx context.Context, req *eventv1.UpdateTicketAvailabilityRequest) error)(ctx, &eventv1.UpdateTicketAvailabilityRequest{
+					TierId:        item.TicketTierId,
+					QuantityDelta: -item.Quantity,
+					Mode:          "pessimistic",
+				})
+				if err != nil {
+					s.logger.Error("Failed to decrease available seat number", zap.Error(err))
+					return err
+				}
+			}
+			return nil
+		},
+		Compensate: func(ctx context.Context) error {
+			for _, item := range booking.Items {
+				err := updateAvailableSeatNumberProcessor.Execute.(func(ctx context.Context, req *eventv1.UpdateTicketAvailabilityRequest) error)(ctx, &eventv1.UpdateTicketAvailabilityRequest{
+					TierId:        item.TicketTierId,
+					QuantityDelta: item.Quantity,
+					Mode:          "pessimistic",
+				})
+				if err != nil {
+					s.logger.Error("Failed to restore available seat number", zap.Error(err))
+					return err
+				}
+			}
+			return nil
+		},
+	}
 	// Reset saga steps
 	sagaHandler.FreeUpSteps()
 
 	sagaHandler.AddStep(reservedSeatStep)
 	sagaHandler.AddStep(createPaymentStep)
 	sagaHandler.AddStep(updateSeatAfterPaymentStep)
-	// sagaHandler.AddStep(reduceAvailableSeatNumber)
 	sagaHandler.AddStep(updateBookingToConfirmed)
+	sagaHandler.AddStep(reduceAvailableSeatNumber)
 	// sagaHanlder.AddStep(sendMailConfirmToUser)
 	// register more steps...
 	// .
 	// .
 	// .
-	err := s.repo.UpsertBatchSagaSteps(ctx, sagaHandler.GetSaga().Steps)
+	err = s.repo.UpsertBatchSagaSteps(ctx, sagaHandler.GetSaga().Steps)
 	if err != nil {
 		return nil, err
 	}
@@ -562,5 +605,64 @@ func (s *SagaService) reBuildSagaHandler(ctx context.Context, saga *domain.Saga,
 func (s *SagaService) HandleSagaAfterPaymentFailure(ctx context.Context, req json.RawMessage) error {
 	// TODO
 	s.logger.Info("Handling Saga after payment process fail")
+	var paymentEvent pkgtyped.PaymentEvent
+	err := json.Unmarshal(req, &paymentEvent)
+	if err != nil {
+		s.logger.Sugar().Errorf("fail to unmarshal payment event", zap.Error(err))
+		return fmt.Errorf("fail to unmarshal payment event: %w", err)
+	}
+
+	// stripeEventData := paymentEvent.Data
+	// var paymentIntent stripe.PaymentIntent
+	// err = json.Unmarshal(stripeEventData.Raw, &paymentIntent)
+	// if err != nil {
+	// 	s.logger.Sugar().Errorf("fail to unmarshal payment intent", zap.Error(err))
+	// 	return fmt.Errorf("fail to unmarshal payment intent: %w", err)
+	// }
+
+	_, err = s.paymentClient.UpdatePaymentStatusByPaymentIntentId(ctx, &paymentv1.UpdatePaymentStatusByPaymentIntentIdReq{
+		PaymentIntentId: paymentEvent.Id,
+		Status:          "fail",
+	})
+	if err != nil {
+		s.logger.Error("fail to update status of payment to fail", zap.Error(err))
+		return fmt.Errorf("fail to update status of payment to fail: %w", err)
+	}
+
+	payment, err := s.paymentClient.GetPaymentByPaymentIntentId(ctx, &paymentv1.GetPaymentByIntentIdReq{
+		PaymentIntentId: paymentEvent.Id,
+	})
+	if err != nil {
+		return err
+	}
+	if payment == nil {
+		return fmt.Errorf("the payment not found")
+	}
+
+	booking, err := s.bookingClient.GetBooking(ctx, &bookingv1.GetBookingRequest{
+		BookingId: payment.BookingId,
+	})
+	if err != nil {
+		return err
+	}
+	if booking == nil {
+		return fmt.Errorf("the booking not found")
+	}
+
+	seatIds := []string{}
+	for _, item := range booking.Items {
+		seatIds = append(seatIds, item.SeatIds...)
+	}
+
+	_, err = s.eventClient.UpdateBatchSeatStatus(ctx, &eventv1.UpdateBatchSeatStatusRequest{
+		SeatIds:   seatIds,
+		Status:    "available",
+		BookingId: uuid.Nil.String(),
+	})
+
+	if err != nil {
+		s.logger.Error("fail to update seats status fail", zap.Error(err))
+		return err
+	}
 	return nil
 }
