@@ -257,8 +257,8 @@ func (r *PostgresTicketTierRepository) UpdateAvailabilityPessimistic(ctx context
 	tier := &domain.TicketTier{}
 	err = tx.QueryRow(ctx,
 		`UPDATE ticket_tiers SET available_quantity = GREATEST(0, available_quantity + $2), version = version + 1
-         WHERE id = $1
-         RETURNING id, event_id, name, price_cents, total_quantity, available_quantity, version, created_at`,
+		WHERE id = $1
+		RETURNING id, event_id, name, price_cents, total_quantity, available_quantity, version, created_at`,
 		tierID, delta).Scan(
 		&tier.ID, &tier.EventID, &tier.Name, &tier.PriceCents,
 		&tier.TotalQuantity, &tier.AvailableQuantity, &tier.Version, &tier.CreatedAt)
