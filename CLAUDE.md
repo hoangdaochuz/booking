@@ -4,20 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-TicketBox is a ticket booking platform solving the **double booking problem** under high concurrency (100K+ simultaneous users). Go microservices backend with gRPC, Next.js frontend, PostgreSQL per service, Kafka for async events.
+TicketBox is a ticket booking platform solving the **double booking problem** under high concurrency (100K+ simultaneous users). Go microservices backend (gRPC) with a Saga orchestrator coordinating booking + payment, Next.js frontend with Stripe checkout, PostgreSQL per service, Kafka for async events (payment webhooks, notifications).
 
 ## Commands
 
 ### Backend (from `backend/`)
 
 ```bash
-make up              # Start all 13 Docker containers
+make up              # Start all ~17 Docker containers (6 Postgres, Redis, Zookeeper, Kafka, Kafka-UI, 7 services)
 make down            # Stop everything
-make migrate         # Run golang-migrate migrations for all 4 databases
-make test            # Run tests for all services
-make test-load       # Load test: 100K concurrent bookings
-make proto           # Regenerate protobuf Go code from proto/ definitions
-make build           # Build all service binaries to bin/
+make migrate         # Run golang-migrate migrations for all 6 databases (scripts/migrate.sh)
+make seed            # ./scripts/seed.sh — admin + test users + sample events
+make test            # Run tests for all services (note: no _test.go files exist yet)
+make test-load       # Load test: scripts/load-test.sh + load-test.go (100K concurrent bookings)
+make proto           # Regenerate protobuf Go code from proto/ → copies into pkg/proto/{svc}/v1/
+make build           # Build all 7 service binaries to bin/
 make logs            # Tail Docker Compose logs
 ```
 
@@ -27,55 +28,87 @@ cd backend/services/booking && go test ./... -v
 cd backend/services/event && go test ./... -v -run TestSpecificFunction
 ```
 
+Service binaries: `make build` builds `gateway user event booking notification payment saga`. The event service also has a `cmd/generate_seats` tool for seeding seat rows.
+
 ### Frontend (from `frontend/`)
 
 ```bash
 npm run dev          # Dev server on :3000
 npm run build        # Production build
-npm run lint         # ESLint (next/core-web-vitals + typescript)
+npm run start        # Start production server
+npm run lint         # ESLint flat config (eslint.config.mjs): eslint-config-next core-web-vitals + typescript
 npx tsc --noEmit     # Type check only
 ```
 
 ## Architecture
 
-### Backend: Go Microservices with gRPC
+### Backend: 7 Go Microservices (gRPC) behind an HTTP Gateway
 
-Five services communicate via gRPC, exposed through an HTTP gateway:
+| Service | Port | Role | DB / port |
+|---|---|---|---|
+| **Gateway** | :8000 HTTP (Gin) | REST → gRPC translation, JWT validation middleware | — |
+| **User** | :50051 | Auth (register/login/refresh/logout), profile | `ticketbox_user` 5433 |
+| **Event** | :50052 | Events, ticket tiers, **per-seat rows** with status, seat-map generation | `ticketbox_event` 5434 |
+| **Booking** | :50053 | Creates bookings (transactional) → triggers **Saga** | `ticketbox_booking` 5435 |
+| **Payment** | :50054 gRPC / :8081 HTTP | Stripe payment intents + webhook receiver; gateway stubs for MoMo/ZaloPay | `ticketbox_payment` 5437 |
+| **Saga** | :50055 | Orchestrates the order saga across booking/payment/event; Kafka consumer for payment outcomes | `ticketbox_saga` 5438 |
+| **Notification** | (no gRPC) | Kafka consumer — async notifications | `ticketbox_notification` 5436 |
 
-- **Gateway** (:8000, Gin) — HTTP REST API, translates to gRPC calls. Handles JWT validation via middleware.
-- **User Service** (:50051) — Auth (register/login/refresh/logout), profile management. DB: `ticketbox_user` on port 5433.
-- **Event Service** (:50052) — CRUD events, ticket tiers, **atomic availability updates** with `SELECT FOR UPDATE`. DB: `ticketbox_event` on port 5434.
-- **Booking Service** (:50053) — Creates bookings transactionally, calls event service for availability. DB: `ticketbox_booking` on port 5435. Configurable `BOOKING_MODE`: pessimistic (default) or optimistic.
-- **Notification Service** — Kafka consumer, no gRPC port. DB: `ticketbox_notification` on port 5436.
+Inter-service wiring is configured via `*_SERVICE_ADDR` env vars in `docker-compose.yml` (e.g. booking → saga-service:50055; saga → event:50052, booking:50053, payment:50054).
 
-**Go workspace** (`backend/go.work`) links all modules. Each service has `replace github.com/ticketbox/pkg => ../../pkg` in its go.mod.
+**Go workspace** (`backend/go.work`) links all modules. Each service module has `replace github.com/ticketbox/pkg => ../../pkg`. Services follow `internal/{domain,grpc,service,repository,kafka}` layout.
 
-**Shared code** lives in `backend/pkg/`: config, database helpers, kafka producer/consumer, gRPC middleware, generated proto code (`pkg/proto/{service}/v1/`).
+**Shared code** in `backend/pkg/`:
+- `config`, `database`, `redis`, `kafka` (producer/consumer), `middleware` (gRPC interceptors)
+- `proto/{user,event,booking,payment,saga}/v1/` — generated protobuf code (regenerated by `make proto`)
+- `saga/` — step-name constants used by the orchestrator (`RESERVED_SEAT_STEP`, `CREATE_PAYMENT_INTENT_STEP`, `UPDATE_SEAT_BOOKED`, `UPDATE_BOOKING_STATUS_CONFIRMED`, `UPDATE_AVAILABLE_SEAT_NUMBER`)
+- `typed/` — typed webhook payloads (e.g. `PaymentEvent` mirroring Stripe webhook JSON)
 
-**Proto definitions** at `backend/proto/{user,event,booking}/v1/*.proto`. Run `make proto` after changes.
+**Proto definitions** at `backend/proto/{user,event,booking,payment,saga}/v1/*.proto`. Run `make proto` after changes, then commit the generated `pkg/proto/**/*.pb.go`.
 
-**Migrations** per service at `backend/services/{name}/migrations/` using golang-migrate format (`000001_init.up.sql` / `000001_init.down.sql`).
+**Migrations** per service at `backend/services/{name}/migrations/` (`000001_init.up.sql` / `.down.sql`).
 
-### Frontend: Next.js 16 App Router
+### The Order Saga (critical path — read `services/saga/internal/service/service.go`)
 
-Path alias: `@/*` maps to project root (e.g., `@/lib/api/client`, `@/components/navbar`).
+Booking no longer decrements availability directly. The Saga service (:50055) orchestrates a multi-step transaction with compensating actions:
 
-Key layers:
-- **`lib/api/client.ts`** — Singleton `apiClient` with JWT token management (auto-refresh on 401), talks to gateway via `/api/*` (proxied by Next.js rewrites in `next.config.ts`).
-- **`lib/api/types.ts`** — Raw API response types matching backend JSON (snake_case, cents for prices).
-- **`lib/api/transformers.ts`** — Converts API types to frontend types (cents→dollars, RFC3339→formatted strings, field renames).
-- **`lib/api/generate-venue-layout.ts`** — Generates SVG venue seat maps from API tier data (concert arena or sports stadium layouts).
-- **`lib/auth-context.tsx`** — AuthProvider wrapping the app. Login/register/logout + session restore from localStorage.
-- **`lib/booking-context.tsx`** — BookingProvider fetches events from API with **mock data fallback** when backend is offline. Manages cart and purchase flow.
-- **`lib/mock-data.ts`** — Hardcoded events with full venue layouts for offline development.
+1. **Booking** `CreateBooking` opens a DB transaction, persists the booking, then calls `sagaClient.StartOrderSaga`.
+2. Saga executes synchronously until it must pause for payment:
+   - **Step 0 — reserve seats**: event service `UpdateBatchSeatStatus` → seats = `reserved`.
+   - **Step 1 — create payment intent**: payment service (Stripe) `CreatePayment` → returns `PaymentIntentClientSecret`. This step has `ShouldPauseForPayment = true`, so the saga **pauses** and the client secret is returned up to the frontend (Stripe Elements).
+3. **Payment webhook** (Stripe → payment service `:8081`) publishes a Kafka event. The saga Kafka consumer calls `HandleSagaAfterPaymentSuccess`, rebuilds the saga handler, and **resumes** from `CurrentStepIndex + 1`:
+   - **Step 2 — mark seats `booked`**; **Step 3 — booking status `CONFIRMED`**; **Step 4 — decrement tier availability** via event `UpdateTicketAvailability` (the `SELECT ... FOR UPDATE` path).
+4. **Compensation**: on payment failure (`HandleSagaAfterPaymentFailure`) or a step error, compensating actions run in reverse — release reserved seats, Stripe refund, set booking `FAILED`.
+
+Because the saga can pause and resume (driven by an async webhook), it is persisted to the `ticketbox_saga` DB with per-step status and `CurrentStepIndex`, then rebuilt on resume (`reBuildSagaHandler`). When modifying the flow, register steps in `pkg/saga` and add both `Execute` and `Compensate` closures.
 
 ### Double Booking Prevention
 
-The critical path: Booking Service → Event Service `UpdateTicketAvailability` → `SELECT ticket_tiers FOR UPDATE WHERE id = $1` → check `available_quantity >= requested` → decrement → commit. Row-level lock serializes concurrent attempts. The `version` column enables optimistic mode as an alternative.
+Two complementary mechanisms:
+
+- **Tier-level availability** (event service `UpdateTicketAvailability`): the original guard, exercised at saga Step 4. Pessimistic mode: `SELECT ticket_tiers FOR UPDATE WHERE id = $1` → check `available_quantity >= requested` → decrement → commit. The row-level lock serializes concurrent attempts. Optimistic mode (`BOOKING_MODE=optimistic`) uses the `version` column instead. Configurable per call via the `mode` field.
+- **Seat-level reservation** (event service `UpdateBatchSeatStatus`): individual seat rows carry a status (`available` / `reserved` / `booked`), so two users can't claim the same seat. Seats are generated by the event service `cmd/generate_seats` tool and surfaced to the frontend venue map.
+
+### Frontend: Next.js 16 App Router + Stripe
+
+Path alias: `@/*` maps to project root. Next.js rewrites proxy `/api/:path*` → `NEXT_PUBLIC_API_URL` (gateway :8000).
+
+Key layers:
+- **`lib/api/client.ts`** — Singleton `apiClient` with JWT token management (auto-refresh on 401), talks to gateway via `/api/*`.
+- **`lib/api/transformers.ts`** — Converts backend JSON (snake_case, `price_cents` int64, RFC3339) to frontend types (dollars, formatted strings, renamed fields).
+- **`lib/api/generate-venue-layout.ts`** — Generates SVG venue seat maps from API tier/seat data (concert arena or sports stadium).
+- **`lib/booking-context.tsx`** — Events, cart, and the **purchase flow**: `initiateBooking()` → backend returns `{ clientSecret, bookingId }` (saga paused at payment); `confirmPayment(paymentIntentId)` completes after Stripe confirms. Uses `@stripe/react-stripe-js` + `@stripe/stripe-js`.
+- **`lib/auth-context.tsx`** — AuthProvider: login/register/logout + session restore from localStorage.
+- **`lib/mock-data.ts`** — Hardcoded events with full venue layouts; `booking-context` falls back to this when the backend is offline (graceful degradation).
+- **`app/checkout/page.tsx`** — Stripe Elements checkout; **`app/my-tickets/page.tsx`** — user's bookings.
+
+### Gateway API surface (`services/gateway/internal/router/router.go`)
+
+`/api/auth/{register,login,refresh}` (public); `/api/events` (GET list/detail, admin POST/PUT/DELETE); `/api/seats` (GET); protected (`/api/auth/logout`, `/api/users/me` GET/PUT, `/api/bookings` CRUD + `/:id/cancel`, `/api/payments` CRUD + `/search`). All protected routes require a valid JWT.
 
 ### Data Shape Mapping
 
-Backend returns `price_cents` (int64), `image_url`, `available_quantity`, `total_amount_cents`. Frontend expects `price` (number, dollars), `image`, `available`, `totalPrice`. Transformers in `lib/api/transformers.ts` handle all conversions.
+Backend returns `price_cents` (int64), `image_url`, `available_quantity`, `total_amount_cents`, `payment_intent_client_secret`. Frontend expects `price` (number, dollars), `image`, `available`, `totalPrice`, `paymentIntentClientSecret`. Transformers in `lib/api/transformers.ts` handle all conversions.
 
 ## Architecture Docs (C3)
 
