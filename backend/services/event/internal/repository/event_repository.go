@@ -67,4 +67,6 @@ type SeatRepository interface {
 
 	// GetAvailableSeatsByTier retrieves available seats for a specific ticket tier
 	GetAvailableSeatsByTier(ctx context.Context, tierID uuid.UUID) ([]*domain.Seat, error)
+
+	GetSeatsBySeatIds(ctx context.Context, seatIds []uuid.UUID) ([]domain.Seat, error)
 }

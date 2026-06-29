@@ -30,7 +30,7 @@ func (r *PostgresEventRepository) Create(ctx context.Context, event *domain.Even
 	defer tx.Rollback(ctx)
 
 	query := `INSERT INTO events (id, title, description, category, venue, location, date, image_url, status, created_at, updated_at)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
 	_, err = tx.Exec(ctx, query,
 		event.ID, event.Title, event.Description, event.Category, event.Venue,
 		event.Location, event.Date, event.ImageURL, event.Status, event.CreatedAt, event.UpdatedAt)
@@ -72,7 +72,7 @@ func (r *PostgresEventRepository) Create(ctx context.Context, event *domain.Even
 
 func (r *PostgresEventRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Event, error) {
 	query := `SELECT id, title, description, category, venue, location, date, image_url, status, created_at, updated_at
-              FROM events WHERE id = $1`
+            FROM events WHERE id = $1`
 	event := &domain.Event{}
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&event.ID, &event.Title, &event.Description, &event.Category, &event.Venue,
@@ -85,7 +85,7 @@ func (r *PostgresEventRepository) GetByID(ctx context.Context, id uuid.UUID) (*d
 	}
 
 	tierQuery := `SELECT id, event_id, name, price_cents, total_quantity, available_quantity, version, created_at
-                  FROM ticket_tiers WHERE event_id = $1`
+                FROM ticket_tiers WHERE event_id = $1`
 	rows, err := r.pool.Query(ctx, tierQuery, id)
 	if err != nil {
 		return nil, fmt.Errorf("get tiers: %w", err)
@@ -157,7 +157,7 @@ func (r *PostgresEventRepository) List(ctx context.Context, category, search str
 	// Load tiers for each event
 	for _, e := range events {
 		tierQuery := `SELECT id, event_id, name, price_cents, total_quantity, available_quantity, version, created_at
-                      FROM ticket_tiers WHERE event_id = $1`
+                    FROM ticket_tiers WHERE event_id = $1`
 		tierRows, err := r.pool.Query(ctx, tierQuery, e.ID)
 		if err != nil {
 			return nil, 0, fmt.Errorf("get tiers: %w", err)
@@ -202,7 +202,7 @@ func NewPostgresTicketTierRepository(pool *pgxpool.Pool) *PostgresTicketTierRepo
 
 func (r *PostgresTicketTierRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.TicketTier, error) {
 	query := `SELECT id, event_id, name, price_cents, total_quantity, available_quantity, version, created_at
-              FROM ticket_tiers WHERE id = $1`
+            FROM ticket_tiers WHERE id = $1`
 	tier := &domain.TicketTier{}
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&tier.ID, &tier.EventID, &tier.Name, &tier.PriceCents,
@@ -218,7 +218,7 @@ func (r *PostgresTicketTierRepository) GetByID(ctx context.Context, id uuid.UUID
 
 func (r *PostgresTicketTierRepository) GetByEventID(ctx context.Context, eventID uuid.UUID) ([]domain.TicketTier, error) {
 	query := `SELECT id, event_id, name, price_cents, total_quantity, available_quantity, version, created_at
-              FROM ticket_tiers WHERE event_id = $1`
+            FROM ticket_tiers WHERE event_id = $1`
 	rows, err := r.pool.Query(ctx, query, eventID)
 	if err != nil {
 		return nil, err
@@ -240,9 +240,9 @@ func (r *PostgresTicketTierRepository) GetByEventID(ctx context.Context, eventID
 // Optimistic locking -- returns ErrConflict if version mismatch
 func (r *PostgresTicketTierRepository) UpdateAvailability(ctx context.Context, tierID uuid.UUID, delta int32, expectedVersion int32) (*domain.TicketTier, error) {
 	query := `UPDATE ticket_tiers
-              SET available_quantity = available_quantity + $2, version = version + 1
-              WHERE id = $1 AND version = $3 AND available_quantity + $2 >= 0
-              RETURNING id, event_id, name, price_cents, total_quantity, available_quantity, version, created_at`
+            SET available_quantity = available_quantity + $2, version = version + 1
+            WHERE id = $1 AND version = $3 AND available_quantity + $2 >= 0
+            RETURNING id, event_id, name, price_cents, total_quantity, available_quantity, version, created_at`
 	tier := &domain.TicketTier{}
 	err := r.pool.QueryRow(ctx, query, tierID, delta, expectedVersion).Scan(
 		&tier.ID, &tier.EventID, &tier.Name, &tier.PriceCents,
@@ -318,7 +318,7 @@ func (r *PostgresSeatRepository) Create(ctx context.Context, seat *domain.Seat) 
 	}
 
 	query := `INSERT INTO seats (id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
 	// Handle nullable UUID fields
 	var bookingID, orderID uuid.UUID
@@ -347,7 +347,7 @@ func (r *PostgresSeatRepository) CreateBatch(ctx context.Context, seats []*domai
 	defer tx.Rollback(ctx)
 
 	query := `INSERT INTO seats (id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
 	for _, seat := range seats {
 		positionJSON, err := json.Marshal(seat.Position)
@@ -381,13 +381,13 @@ func (r *PostgresSeatRepository) GetByEventID(ctx context.Context, eventID uuid.
 
 	if tierID != nil {
 		query := `SELECT id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at
-                  FROM seats WHERE event_id = $1 AND ticket_tier_id = $2 AND deleted_at IS NULL
-                  ORDER BY position->>'sectionId', position->>'row', (position->>'seat')::int`
+                FROM seats WHERE event_id = $1 AND ticket_tier_id = $2 AND deleted_at IS NULL
+                ORDER BY position->>'sectionId', position->>'row', (position->>'seat')::int`
 		rows, err = r.pool.Query(ctx, query, eventID, *tierID)
 	} else {
 		query := `SELECT id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at
-                  FROM seats WHERE event_id = $1 AND deleted_at IS NULL
-                  ORDER BY position->>'sectionId', position->>'row', (position->>'seat')::int`
+                FROM seats WHERE event_id = $1 AND deleted_at IS NULL
+                ORDER BY position->>'sectionId', position->>'row', (position->>'seat')::int`
 		rows, err = r.pool.Query(ctx, query, eventID)
 	}
 
@@ -410,7 +410,7 @@ func (r *PostgresSeatRepository) GetByEventID(ctx context.Context, eventID uuid.
 
 func (r *PostgresSeatRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Seat, error) {
 	query := `SELECT id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at
-              FROM seats WHERE id = $1 AND deleted_at IS NULL`
+            FROM seats WHERE id = $1 AND deleted_at IS NULL`
 	seat := &domain.Seat{}
 	var positionJSON []byte
 	var bookingID, orderID uuid.UUID
@@ -534,8 +534,8 @@ func (r *PostgresSeatRepository) scanSeat(rows pgx.Rows) (*domain.Seat, error) {
 
 func (r *PostgresSeatRepository) GetByTierID(ctx context.Context, tierID uuid.UUID) ([]*domain.Seat, error) {
 	query := `SELECT id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at
-              FROM seats WHERE ticket_tier_id = $1 AND deleted_at IS NULL
-              ORDER BY position->>'sectionId', position->>'row', (position->>'seat')::int`
+            FROM seats WHERE ticket_tier_id = $1 AND deleted_at IS NULL
+            ORDER BY position->>'sectionId', position->>'row', (position->>'seat')::int`
 	rows, err := r.pool.Query(ctx, query, tierID)
 	if err != nil {
 		return nil, fmt.Errorf("get seats by tier: %w", err)
@@ -618,8 +618,8 @@ func (r *PostgresSeatRepository) UpdateStatusBatch(ctx context.Context, seatIDs 
 
 func (r *PostgresSeatRepository) GetAvailableSeats(ctx context.Context, eventID uuid.UUID) ([]*domain.Seat, error) {
 	query := `SELECT id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at
-              FROM seats WHERE event_id = $1 AND status = 'available' AND deleted_at IS NULL
-              ORDER BY position->>'sectionId', position->>'row', (position->>'seat')::int`
+            FROM seats WHERE event_id = $1 AND status = 'available' AND deleted_at IS NULL
+            ORDER BY position->>'sectionId', position->>'row', (position->>'seat')::int`
 	rows, err := r.pool.Query(ctx, query, eventID)
 	if err != nil {
 		return nil, fmt.Errorf("get available seats: %w", err)
@@ -640,8 +640,8 @@ func (r *PostgresSeatRepository) GetAvailableSeats(ctx context.Context, eventID 
 
 func (r *PostgresSeatRepository) GetAvailableSeatsByTier(ctx context.Context, tierID uuid.UUID) ([]*domain.Seat, error) {
 	query := `SELECT id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at
-              FROM seats WHERE ticket_tier_id = $1 AND status = 'available' AND deleted_at IS NULL
-              ORDER BY position->>'sectionId', position->>'row', (position->>'seat')::int`
+            FROM seats WHERE ticket_tier_id = $1 AND status = 'available' AND deleted_at IS NULL
+            ORDER BY position->>'sectionId', position->>'row', (position->>'seat')::int`
 	rows, err := r.pool.Query(ctx, query, tierID)
 	if err != nil {
 		return nil, fmt.Errorf("get available seats by tier: %w", err)
@@ -672,4 +672,26 @@ func (r *PostgresSeatRepository) DeleteByEventID(ctx context.Context, eventID uu
 	query := `UPDATE seats SET deleted_at = NOW() WHERE event_id = $1 AND deleted_at IS NULL`
 	_, err := r.pool.Exec(ctx, query, eventID)
 	return err
+}
+
+func (r *PostgresSeatRepository) GetSeatsBySeatIds(ctx context.Context, seatIds []uuid.UUID) ([]domain.Seat, error) {
+	query := `SELECT id, event_id, ticket_tier_id, status, booking_id, order_id, position, created_at, updated_at
+            FROM seats WHERE id = ANY($1) AND deleted_at IS NULL`
+	rows, err := r.pool.Query(ctx, query, seatIds)
+	if err != nil {
+		return nil, fmt.Errorf("fail to get seats by seatids: %w", err)
+	}
+	defer rows.Close()
+	var seats []domain.Seat
+	for rows.Next() {
+		seat, err := r.scanSeat(rows)
+		if err != nil {
+			return nil, fmt.Errorf("[GetSeatsBySeatIds]: scan seat: %w", err)
+		}
+		if seat == nil {
+			continue
+		}
+		seats = append(seats, *seat)
+	}
+	return seats, nil
 }
