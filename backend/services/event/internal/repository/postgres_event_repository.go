@@ -583,10 +583,10 @@ func (r *PostgresSeatRepository) UpdateStatusBatch(ctx context.Context, seatIDs 
 			return fmt.Errorf("scan locked seats: %w", err)
 		}
 		lockedIDs = append(lockedIDs, id)
-		if len(currentSeatsStatus) > 1 && currentSeatsStatus[len(currentSeatsStatus)-1] != currStatus {
+		if len(currentSeatsStatus) >= 1 && currentSeatsStatus[len(currentSeatsStatus)-1] != currStatus {
 			return fmt.Errorf("Exist seat has been inconsistent status")
 		}
-		currentSeatsStatus = append(currentSeatsStatus, status)
+		currentSeatsStatus = append(currentSeatsStatus, currStatus)
 	}
 
 	if len(lockedIDs) != len(seatIDs) {
