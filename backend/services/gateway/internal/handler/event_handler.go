@@ -60,7 +60,7 @@ func (h *EventHandler) GetEvent(c *gin.Context) {
 	c.JSON(http.StatusOK, toEventJSON(resp))
 }
 
-func (h *EventHandler) GetSeats(c *gin.Context) {
+func (h *EventHandler) GetSeatsOfEventByTierId(c *gin.Context) {
 	eventID := c.Query("event_id")
 	if eventID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "event_id is required"})
@@ -69,7 +69,7 @@ func (h *EventHandler) GetSeats(c *gin.Context) {
 
 	tierID := c.Query("ticket_tier_id")
 
-	resp, err := h.eventClient.GetSeats(c.Request.Context(), &eventv1.GetSeatsRequest{
+	resp, err := h.eventClient.GetSeatsOfEventByTierId(c.Request.Context(), &eventv1.GetSeatsRequest{
 		EventId:      eventID,
 		TicketTierId: tierID,
 	})

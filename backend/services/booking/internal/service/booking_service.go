@@ -46,6 +46,41 @@ type CreateBookingResponse struct {
 }
 
 func (s *BookingService) CreateBooking(ctx context.Context, userID, eventID uuid.UUID, items []domain.BookingItem, mode string) (*CreateBookingResponse, error) {
+	// Check if evet exists and seats are available
+	event, err := s.eventClient.GetEvent(ctx, &eventv1.GetEventRequest{
+		EventId: eventID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if event == nil {
+		return nil, fmt.Errorf("[Create Booking]: event not found")
+	}
+	seatIds := []string{}
+	for _, bookingItem := range items {
+		for _, seatId := range bookingItem.SeatIDs {
+			seatIdStr := seatId.String()
+			seatIds = append(seatIds, seatIdStr)
+		}
+	}
+
+	seatsRes, err := s.eventClient.GetSeatsBySeatIds(ctx, &eventv1.GetSeatsBySeatIdsRequest{
+		SeatIds: seatIds,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	if seatsRes == nil || len(seatsRes.Seats) == 0 {
+		return nil, fmt.Errorf("get seats for create booking method not found")
+	}
+
+	for _, seat := range seatsRes.Seats {
+		if seat.Status != "available" {
+			return nil, fmt.Errorf("Existing a seat which already reserved/booked")
+		}
+	}
+
 	now := time.Now()
 	booking := &domain.Booking{
 		ID:        uuid.New(),
@@ -123,53 +158,6 @@ func (s *BookingService) CreateBooking(ctx context.Context, userID, eventID uuid
 
 		items[i].UnitPriceCents = tier.PriceCents
 		totalCents += tier.PriceCents * int64(item.Quantity)
-		// Why we reduce availability seat here? We doesn't make sure that user complete the booking?
-		// var updateErr error
-		// switch mode {
-		// case "naive":
-		// _, updateErr = s.eventClient.UpdateTicketAvailability(ctx, &eventv1.UpdateTicketAvailabilityRequest{
-		// 	TierId:        item.TicketTierID.String(),
-		// 	QuantityDelta: -item.Quantity,
-		// 	Mode:          "naive",
-		// })
-		// case "pessimistic":
-		// 	_, updateErr = s.eventClient.UpdateTicketAvailability(ctx, &eventv1.UpdateTicketAvailabilityRequest{
-		// 		TierId:        item.TicketTierID.String(),
-		// 		QuantityDelta: -item.Quantity,
-		// 		Mode:          "pessimistic",
-		// 	})
-		// case "optimistic":
-		// 	maxRetries := 3
-		// 	for attempt := 0; attempt < maxRetries; attempt++ {
-		// 		tierInfo, getErr := s.eventClient.GetTicketAvailability(ctx, &eventv1.GetTicketAvailabilityRequest{
-		// 			TierId: item.TicketTierID.String(),
-		// 		})
-		// 		if getErr != nil {
-		// 			updateErr = getErr
-		// 			break
-		// 		}
-		// 		_, updateErr = s.eventClient.UpdateTicketAvailability(ctx, &eventv1.UpdateTicketAvailabilityRequest{
-		// 			TierId:          item.TicketTierID.String(),
-		// 			QuantityDelta:   -item.Quantity,
-		// 			ExpectedVersion: tierInfo.Version,
-		// 			Mode:            "optimistic",
-		// 		})
-		// 		if updateErr == nil {
-		// 			break
-		// 		}
-		// 		s.logger.Warn("Optimistic lock retry", zap.Int("attempt", attempt+1))
-		// 	}
-		// default:
-		// 	return nil, fmt.Errorf("unknown booking mode: %s", mode)
-		// }
-
-		// if updateErr != nil {
-		// 	booking.Status = domain.StatusFailed
-		// 	booking.TotalAmountCents = totalCents
-		// 	booking.Items = items
-		// 	_ = s.bookingRepo.Create(ctx, booking)
-		// 	return booking, fmt.Errorf("reserve tickets failed: %w", updateErr)
-		// }
 	}
 
 	booking.TotalAmountCents = totalCents

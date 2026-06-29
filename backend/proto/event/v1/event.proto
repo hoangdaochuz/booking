@@ -17,9 +17,10 @@ service EventService {
     rpc GetTicketAvailability(GetTicketAvailabilityRequest) returns (TicketAvailabilityResponse);
     rpc UpdateTicketAvailability(UpdateTicketAvailabilityRequest) returns (TicketTier);
     rpc UpdateBatchTicketAvailability(UpdateTicketAvailabilityRequest) returns (google.protobuf.Empty);
-    rpc GetSeats(GetSeatsRequest) returns (GetSeatsResponse);
+    rpc GetSeatsOfEventByTierId(GetSeatsRequest) returns (GetSeatsResponse);
     rpc UpdateSeatStatus(UpdateSeatStatusRequest) returns (UpdateSeatStatusResponse);
     rpc UpdateBatchSeatStatus(UpdateBatchSeatStatusRequest) returns (google.protobuf.Empty);
+    rpc GetSeatsBySeatIds(GetSeatsBySeatIdsRequest)returns (GetSeatsResponse);
 }
 
 message CreateEventRequest {
@@ -152,4 +153,8 @@ message UpdateBatchSeatStatusRequest {
 
 message UpdateSeatStatusResponse {
     Seat seat = 1;
+}
+
+message GetSeatsBySeatIdsRequest {
+    repeated string seatIds = 1;
 }

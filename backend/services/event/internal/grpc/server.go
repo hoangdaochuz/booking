@@ -184,7 +184,7 @@ func toTicketTier(t *domain.TicketTier) *eventv1.TicketTier {
 	}
 }
 
-func (s *EventServer) GetSeats(ctx context.Context, req *eventv1.GetSeatsRequest) (*eventv1.GetSeatsResponse, error) {
+func (s *EventServer) GetSeatsOfEventByTierId(ctx context.Context, req *eventv1.GetSeatsRequest) (*eventv1.GetSeatsResponse, error) {
 	eventID, err := uuid.Parse(req.EventId)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid event ID")
@@ -326,4 +326,32 @@ func toSeat(s *domain.Seat) *eventv1.Seat {
 
 func (s *EventServer) UpdateBatchTicketAvailability(ctx context.Context, req *eventv1.UpdateTicketAvailabilityRequest) (*emptypb.Empty, error) {
 	return nil, nil
+}
+
+func (s *EventServer) GetSeatsBySeatIds(ctx context.Context, req *eventv1.GetSeatsBySeatIdsRequest) (*eventv1.GetSeatsResponse, error) {
+	seatUUIDs := []uuid.UUID{}
+	for _, seatId := range req.SeatIds {
+		uid, err := uuid.Parse(seatId)
+		if err != nil {
+			s.logger.Sugar().Errorf("[Event][GetSeatsBySeatIds]: Existing invalid UUID seat in request", zap.Error(err))
+			return nil, fmt.Errorf("Existing invalid UUID seat in request: %w", err)
+		}
+		seatUUIDs = append(seatUUIDs, uid)
+	}
+
+	domainSeats, err := s.service.GetSeatsBySeatIds(ctx, seatUUIDs)
+	if err != nil {
+		return nil, err
+	}
+	if len(domainSeats) == 0 {
+		return nil, fmt.Errorf("Get seats by seatIds fail: seat not found")
+	}
+	seats := []*eventv1.Seat{}
+	for _, seat := range domainSeats {
+		resSeat := toSeat(&seat)
+		seats = append(seats, resSeat)
+	}
+	return &eventv1.GetSeatsResponse{
+		Seats: seats,
+	}, nil
 }

@@ -216,3 +216,7 @@ func (s *EventService) UpdateSeatStatus(ctx context.Context, seatID uuid.UUID, s
 func (s *EventService) UpdateBatchSeatStatus(ctx context.Context, seatIds []uuid.UUID, status domain.SeatStatus, bookingID *uuid.UUID) error {
 	return s.seatRepo.UpdateStatusBatch(ctx, seatIds, status, bookingID)
 }
+
+func (s *EventService) GetSeatsBySeatIds(ctx context.Context, seatIds []uuid.UUID) ([]domain.Seat, error) {
+	return s.seatRepo.GetSeatsBySeatIds(ctx, seatIds)
+}
