@@ -220,3 +220,19 @@ func (s *EventService) UpdateBatchSeatStatus(ctx context.Context, seatIds []uuid
 func (s *EventService) GetSeatsBySeatIds(ctx context.Context, seatIds []uuid.UUID) ([]domain.Seat, error) {
 	return s.seatRepo.GetSeatsBySeatIds(ctx, seatIds)
 }
+
+type ReservedOrCompensateBatchSeatsReq struct {
+	SeatIds               []uuid.UUID
+	ReservedByBookingId   uuid.UUID
+	Action                domain.ReserveSeatAction
+	ReservedTimeInMinutes int32
+}
+
+func (s *EventService) ReservedOrCompensateBatchSeats(ctx context.Context, req *ReservedOrCompensateBatchSeatsReq) (bool, error) {
+	return s.seatRepo.ReservedOrCompensateBatchSeats(ctx, &repository.ReservedOrCompensateBatchSeats{
+		SeatIds:               req.SeatIds,
+		ReservedByBookingId:   req.ReservedByBookingId,
+		Action:                req.Action,
+		ReservedTimeInMinutes: req.ReservedTimeInMinutes,
+	})
+}

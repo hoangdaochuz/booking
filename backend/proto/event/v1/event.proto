@@ -21,6 +21,19 @@ service EventService {
     rpc UpdateSeatStatus(UpdateSeatStatusRequest) returns (UpdateSeatStatusResponse);
     rpc UpdateBatchSeatStatus(UpdateBatchSeatStatusRequest) returns (google.protobuf.Empty);
     rpc GetSeatsBySeatIds(GetSeatsBySeatIdsRequest)returns (GetSeatsResponse);
+    rpc ReservedOrCompensateBatchSeats(ReservedOrCompensateBatchSeatsReq) returns (ReservedOrCompensateBatchSeatsRes);
+}
+
+message ReservedOrCompensateBatchSeatsReq {
+    repeated string seat_ids = 1;
+    string action = 2;
+    int32 reservation_time_in_minutes = 3;
+    string reserved_by_booking_id = 4;
+}
+
+
+message ReservedOrCompensateBatchSeatsRes {
+    bool success = 1;
 }
 
 message CreateEventRequest {

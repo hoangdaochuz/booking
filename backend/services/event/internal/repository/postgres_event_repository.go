@@ -695,3 +695,24 @@ func (r *PostgresSeatRepository) GetSeatsBySeatIds(ctx context.Context, seatIds 
 	}
 	return seats, nil
 }
+
+func (r *PostgresSeatRepository) ReservedOrCompensateBatchSeats(ctx context.Context, req *ReservedOrCompensateBatchSeats) (bool, error) {
+	var err error
+	if req.Action == domain.RESERVED_SEAT {
+		query := `UPDATE seats 
+				SET status = $2, reservation_expired_at = NOW() + ($3 * INTERVAL '1 minute'), reserved_by_booking_id = $4
+				WHERE id = ANY($1)`
+		_, err = r.pool.Exec(ctx, query, req.SeatIds, "reserved", req.ReservedTimeInMinutes, req.ReservedByBookingId)
+
+	} else {
+		query := `UPDATE seats 
+			SET status = $2, reservation_expired_at = NULL, reserved_by_booking_id = NULL
+			WHERE id = ANY($1)`
+		_, err = r.pool.Exec(ctx, query, req.SeatIds, "available")
+	}
+
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
