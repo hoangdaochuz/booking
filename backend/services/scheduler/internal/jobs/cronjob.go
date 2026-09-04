@@ -13,6 +13,10 @@ import (
 	"github.com/ticketbox/scheduler/internal/repository"
 )
 
+// defaultJobTimeout is used when a job config carries no positive timeout,
+// otherwise context.WithTimeout(0) would expire immediately.
+const defaultJobTimeout = 30 * time.Second
+
 type CronJobManager struct {
 	logger         *zap.Logger
 	cron           *cronv3.Cron
@@ -52,96 +56,148 @@ func NewCronjobManager(logger *zap.Logger, schedulerRepo repository.SchedulerRep
 
 }
 
-func (c *CronJobManager) Start(ctx context.Context) {
+// Start is non-blocking (robfig cron spawns its own goroutine), so callers
+// must NOT wrap it in an extra `go func()`. It is idempotent and safe to
+// call once after all jobs are registered.
+func (c *CronJobManager) Start() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.isStarted {
+		return
+	}
 	c.cron.Start()
 	c.isStarted = true
-	c.logger.Sugar().Info("[CronJobManager][Start] Cronjob manager starts successfully")
+	c.logger.Info("[CronJobManager][Start] Cronjob manager starts successfully")
 
 }
 
 func (c *CronJobManager) LoadJobSchedulerConfigs(ctx context.Context) error {
-	c.jobConfig = make(map[string]domain.SchedulerConfig)
 	jobConfigs, err := c.schedulerRepo.ListSchedulersConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("[CronJobManager][LoadJobSchedulerConfigs] Load job schedule config fail: %w", err)
 	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.jobConfig = make(map[string]domain.SchedulerConfig, len(jobConfigs))
 	for _, jc := range jobConfigs {
 		c.jobConfig[jc.Name] = jc
 	}
-	c.logger.Sugar().Info("[CronJobManager][LoadJobSchedulerConfigs] Scheduler configs load successfully")
+	c.logger.Info("[CronJobManager][LoadJobSchedulerConfigs] Scheduler configs load successfully",
+		zap.Int("count", len(jobConfigs)))
 	return nil
 }
 
 func (c *CronJobManager) Stop() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.isStarted {
+		return nil
+	}
+	c.isStarted = false
 	return c.cron.Stop().Err()
 }
 
-func (c *CronJobManager) RegisterJob(ctx context.Context, job Job) error {
+func (c *CronJobManager) RegisterJob(_ context.Context, job Job) error {
 	jobName := job.Name()
+
+	c.mu.Lock()
 	jc, ok := c.jobConfig[jobName]
 	if !ok {
-		return fmt.Errorf("[CronJobManager][RegisterJob] Job config of this job is not exist")
+		c.mu.Unlock()
+		return fmt.Errorf("[CronJobManager][RegisterJob] Job config of this job is not exist: %s", jobName)
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	c.jobs[jobName] = job
-
-	entryId, err := c.cron.AddFunc(jc.IntervalExpression, jobHandle(job, c.logger, jc.Timeout, c.withErrHandler))
+	if !jc.IsEnabled {
+		c.mu.Unlock()
+		c.logger.Info("[CronJobManager][RegisterJob] Job is disabled, skip scheduling",
+			zap.String("job", jobName))
+		return nil
+	}
+	handler := jobHandle(job, c.logger, jc.Timeout, c.withErrHandler)
+	entryID, err := c.cron.AddFunc(jc.IntervalExpression, handler)
 	if err != nil {
+		c.mu.Unlock()
 		return fmt.Errorf("[CronJobManager][RegisterJob] Register job fail: %w", err)
 	}
-	c.jobEntryID[jobName] = entryId
-	c.logger.Sugar().Infof("[CronJobManager][RegisterJob]: Job %s registered successfully", jobName, zap.String("cron", jc.IntervalExpression), zap.String("timeout", jc.Timeout.String()), zap.Bool("IsEnable", jc.IsEnabled))
+	c.jobEntryID[jobName] = entryID
+	c.mu.Unlock()
+
+	c.logger.Info("[CronJobManager][RegisterJob] Job registered successfully",
+		zap.String("job", jobName),
+		zap.String("cron", jc.IntervalExpression),
+		zap.Duration("timeout", jc.Timeout),
+		zap.Bool("isEnabled", jc.IsEnabled))
 	return nil
 }
 
 func jobHandle(job Job, logger *zap.Logger, timeout time.Duration, handlerErr func(ctx context.Context, err error) error) func() {
+	if timeout <= 0 {
+		timeout = defaultJobTimeout
+	}
 	return func() {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
-		err := job.Run(ctx)
-		if err != nil {
-			handleerr := handlerErr(ctx, err)
-			logger.Sugar().Errorf("[%s] handlerErr fail", job.Name(), zap.Error(handleerr))
-		} else {
-			logger.Sugar().Infof("[%s] Complete successfully", job.Name())
+		if err := job.Run(ctx); err != nil {
+			logger.Error("Job run failed",
+				zap.String("job", job.Name()),
+				zap.Error(err))
+			if handlerErr != nil {
+				if handleErr := handlerErr(ctx, err); handleErr != nil {
+					logger.Error("Job error handler failed",
+						zap.String("job", job.Name()),
+						zap.Error(handleErr))
+				}
+			}
+			return
 		}
+		logger.Info("Job completed successfully", zap.String("job", job.Name()))
 	}
 }
 
-func (c *CronJobManager) ReRegisterJob(ctx context.Context, jc domain.SchedulerConfig) error {
+func (c *CronJobManager) ReRegisterJob(_ context.Context, jc domain.SchedulerConfig) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	jobEntryId, ok := c.jobEntryID[jc.Name]
-	if !ok {
-		return fmt.Errorf("[CronJobManager][ReRegisterJob] Fail to get job entry id")
-	}
-	c.cron.Remove(jobEntryId)
+
 	currentJobConfig, ok := c.jobConfig[jc.Name]
 	if !ok {
-		return fmt.Errorf("[CronJobManager][ReRegisterJob] Fail to get job config")
+		return fmt.Errorf("[CronJobManager][ReRegisterJob] Fail to get job config: %s", jc.Name)
 	}
 	if jc.Version <= currentJobConfig.Version {
-		// NOOP
-		c.logger.Sugar().Info("[CronJobManager][ReRegisterJob] The target job config is not latest version")
+		// NOOP: stale event, keep the current schedule untouched.
+		c.logger.Info("[CronJobManager][ReRegisterJob] The target job config is not latest version, skip",
+			zap.String("job", jc.Name),
+			zap.Int("currentVersion", currentJobConfig.Version),
+			zap.Int("targetVersion", jc.Version))
+		return nil
 	}
 
-	delete(c.jobConfig, jc.Name)
+	// Remove the old schedule if there is one (a disabled job has none).
+	if jobEntryID, ok := c.jobEntryID[jc.Name]; ok {
+		c.cron.Remove(jobEntryID)
+		delete(c.jobEntryID, jc.Name)
+	}
+
 	c.jobConfig[jc.Name] = jc
 
 	if !jc.IsEnabled {
+		c.logger.Info("[CronJobManager][ReRegisterJob] Job is disabled, schedule removed",
+			zap.String("job", jc.Name))
 		return nil
 	}
 
 	job, ok := c.jobs[jc.Name]
 	if !ok {
-		return fmt.Errorf("[CronJobManager][ReRegisterJob] Fail to get job implementation")
+		return fmt.Errorf("[CronJobManager][ReRegisterJob] Fail to get job implementation: %s", jc.Name)
 	}
-	entryId, err := c.cron.AddFunc(jc.IntervalExpression, jobHandle(job, c.logger, jc.Timeout, c.withErrHandler))
+	entryID, err := c.cron.AddFunc(jc.IntervalExpression, jobHandle(job, c.logger, jc.Timeout, c.withErrHandler))
 	if err != nil {
 		return fmt.Errorf("[CronJobManager][ReRegisterJob] fail to register job: %w", err)
 	}
-	c.jobEntryID[jc.Name] = entryId
-	c.logger.Sugar().Infof("[CronJobManager][RegisterJob]: Job %s re-registered successfully", jc.Name, zap.String("cron", jc.IntervalExpression), zap.String("timeout", jc.Timeout.String()), zap.Bool("IsEnable", jc.IsEnabled))
+	c.jobEntryID[jc.Name] = entryID
+	c.logger.Info("[CronJobManager][ReRegisterJob] Job re-registered successfully",
+		zap.String("job", jc.Name),
+		zap.String("cron", jc.IntervalExpression),
+		zap.Duration("timeout", jc.Timeout),
+		zap.Bool("isEnabled", jc.IsEnabled))
 	return nil
 }

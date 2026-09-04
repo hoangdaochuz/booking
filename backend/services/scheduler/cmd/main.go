@@ -76,8 +76,10 @@ func main() {
 		<-sigCh
 		logger.Info("Shutting down scheduler service...")
 		grpcServer.GracefulStop()
+		if err := cronManager.Stop(); err != nil {
+			logger.Error("Fail to stop cron manager", zap.Error(err))
+		}
 		cancel()
-		cronManager.Stop()
 	}()
 
 	schedulerConfigConsumer := kafka.NewSchedulerConfigConsumer(cfg.KafkaBrokers, schedulerSvc, logger)
@@ -105,20 +107,20 @@ func main() {
 		logger.Error("Fail to start OutboundEventHandler", zap.Error(err))
 	}
 
-	// Cronjob Register Here
-	go func() {
-		err := cronManager.LoadJobSchedulerConfigs(ctx)
-		if err != nil {
-			logger.Sugar().Errorf("Fail to load job scheduler configs: %w", err)
-			return
-		}
-		// Register job
-		reservationCleanerJob := cronjob.NewReservationCleanerJob()
-		cronManager.RegisterJob(ctx, reservationCleanerJob)
-		// .... continue register here
+	// Cronjob init is synchronous on purpose: robfig cron Start() is already
+	// non-blocking, so no extra goroutine is needed. Fail fast here so the
+	// service never looks healthy while jobs are silently dead.
+	if err := cronManager.LoadJobSchedulerConfigs(ctx); err != nil {
+		logger.Fatal("Fail to load job scheduler configs", zap.Error(err))
+	}
+	// Register job
+	reservationCleanerJob := cronjob.NewReservationCleanerJob()
+	if err := cronManager.RegisterJob(ctx, reservationCleanerJob); err != nil {
+		logger.Fatal("Fail to register reservation cleaner job", zap.Error(err))
+	}
+	// .... continue register here
 
-		cronManager.Start(ctx)
-	}()
+	cronManager.Start()
 	logger.Info("Scheduler service started", zap.String("port", cfg.GRPCPort))
 	if err := grpcServer.Serve(lis); err != nil {
 		logger.Fatal("gRPC server failed", zap.Error(err))
