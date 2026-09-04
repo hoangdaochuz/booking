@@ -2,4 +2,5 @@
 *.pen
 c3
 .claude/
+.opencode
 c3-nav.vsix

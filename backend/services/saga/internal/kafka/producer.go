@@ -4,6 +4,7 @@ import (
 	"context"
 
 	pkgkafka "github.com/ticketbox/pkg/kafka"
+	"github.com/ticketbox/pkg/topics"
 	"go.uber.org/zap"
 )
 
@@ -15,7 +16,7 @@ type SagaOrchestratorProducer struct {
 func NewSagaOrchestratorProducer(brokes []string, logger *zap.Logger) *SagaOrchestratorProducer {
 	return &SagaOrchestratorProducer{
 		logger:   logger,
-		producer: pkgkafka.NewProducer(brokes, []string{"order.events", "booking.events", "notification.events"}, logger),
+		producer: pkgkafka.NewProducer(brokes, []string{topics.TopicOrderEvents, topics.TopicBookingEvents, topics.TopicNotificationEvents}, logger),
 	}
 }
 

@@ -1,6 +1,6 @@
 .PHONY: proto build up down migrate test test-load logs clean
 
-SERVICES := gateway user event booking notification payment saga
+SERVICES := gateway user event booking notification payment saga scheduler
 
 proto:
 	@echo "Generating protobuf code..."
@@ -10,7 +10,7 @@ proto:
 			$$dir/*.proto; \
 	done
 	@echo "Copying generated files to pkg/proto/..."
-	@for service in booking event payment user saga; do \
+	@for service in booking event payment user saga scheduler; do \
 		mkdir -p pkg/proto/$$service/v1; \
 		cp proto/$$service/v1/*.pb.go pkg/proto/$$service/v1/ 2>/dev/null || true; \
 	done
@@ -22,10 +22,10 @@ build:
 	done
 
 up:
-	docker-compose up -d
+	podman compose up -d
 
 down:
-	docker-compose down
+	podman compose down
 
 migrate:
 	@bash scripts/migrate.sh
@@ -40,7 +40,7 @@ test-load:
 	@bash scripts/load-test.sh
 
 logs:
-	docker-compose logs -f
+	podman compose logs -f
 
 clean:
 	rm -rf bin/

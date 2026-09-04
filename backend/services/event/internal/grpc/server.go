@@ -355,3 +355,47 @@ func (s *EventServer) GetSeatsBySeatIds(ctx context.Context, req *eventv1.GetSea
 		Seats: seats,
 	}, nil
 }
+
+func (s *EventServer) ReservedOrCompensateBatchSeats(ctx context.Context, req *eventv1.ReservedOrCompensateBatchSeatsReq) (*eventv1.ReservedOrCompensateBatchSeatsRes, error) {
+	seatUUIDs := []uuid.UUID{}
+	if len(req.SeatIds) == 0 {
+		return nil, fmt.Errorf("[ReservedOrCompensateBatchSeats]: seatIds is required")
+	}
+
+	for _, seatId := range req.SeatIds {
+		sUUID, err := uuid.Parse(seatId)
+		if err != nil {
+			return nil, fmt.Errorf("[ReservedOrCompensateBatchSeats]: seat id is invalid: %w", err)
+		}
+		seatUUIDs = append(seatUUIDs, sUUID)
+	}
+	if domain.ReserveSeatAction(req.Action) != domain.RESERVED_SEAT && domain.ReserveSeatAction(req.Action) != domain.COMPENSATE_SEAT {
+		return nil, fmt.Errorf("[ReservedOrCompensateBatchSeats]: invalid action")
+	}
+
+	if domain.ReserveSeatAction(req.Action) == domain.RESERVED_SEAT && req.ReservedByBookingId == "" {
+		return nil, fmt.Errorf("[ReservedOrCompensateBatchSeats]: reserved_by_booking_id is required")
+	}
+	reservedByBookingUUID := uuid.Nil
+	var err error
+	if domain.ReserveSeatAction(req.Action) == domain.RESERVED_SEAT {
+		reservedByBookingUUID, err = uuid.Parse(req.ReservedByBookingId)
+		if err != nil {
+			return nil, fmt.Errorf("[ReservedOrCompensateBatchSeats]: reserved_by_booking_id is invalid: %w", err)
+		}
+	}
+
+	result, err := s.service.ReservedOrCompensateBatchSeats(ctx, &service.ReservedOrCompensateBatchSeatsReq{
+		SeatIds:               seatUUIDs,
+		Action:                domain.ReserveSeatAction(req.Action),
+		ReservedByBookingId:   reservedByBookingUUID,
+		ReservedTimeInMinutes: req.ReservationTimeInMinutes,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("[ReservedOrCompensateBatchSeats]: fail to %s: %w", req.Action, err)
+	}
+	return &eventv1.ReservedOrCompensateBatchSeatsRes{
+		Success: result,
+	}, nil
+
+}

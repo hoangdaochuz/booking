@@ -4,6 +4,7 @@ import (
 	"context"
 
 	pkgkafka "github.com/ticketbox/pkg/kafka"
+	"github.com/ticketbox/pkg/topics"
 	"go.uber.org/zap"
 )
 
@@ -15,7 +16,7 @@ type PaymentProducer struct {
 func NewPaymentProducer(brokers []string, logger *zap.Logger) *PaymentProducer {
 	return &PaymentProducer{
 		logger:   logger,
-		producer: pkgkafka.NewProducer(brokers, []string{"payment.events"}, logger),
+		producer: pkgkafka.NewProducer(brokers, []string{topics.TopicPaymentEvents}, logger),
 	}
 }
 

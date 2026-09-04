@@ -67,8 +67,8 @@ func main() {
 	sagaStepRegistry := registry.NewSagaStepRegistry()
 	sagaService := service.NewSagaService(logger, sagaRepository, sagaStepRegistry, bookingClient, paymentClient, eventClient)
 	sagaStepRegistry.Register(string(sagapkg.RESERVED_SEAT_STEP), registry.SagaStepProcessor{
-		Execute:    sagaService.UpdateBatchSeatStatus,
-		Compensate: sagaService.UpdateBatchSeatStatus,
+		Execute:    sagaService.ReservedOrCompensateBatchSeats,
+		Compensate: sagaService.ReservedOrCompensateBatchSeats,
 	})
 	sagaStepRegistry.Register(string(sagapkg.CREATE_PAYMENT_INTENT_STEP), registry.SagaStepProcessor{
 		Execute:    sagaService.CreatePayment,
@@ -86,7 +86,7 @@ func main() {
 	})
 
 	sagaStepRegistry.Register(string(sagapkg.UPDATE_AVAILABLE_SEAT_NUMBER), registry.SagaStepProcessor{
-		Execute: sagaService.UpdateAvailableSeatNumber,
+		Execute:    sagaService.UpdateAvailableSeatNumber,
 		Compensate: sagaService.UpdateAvailableSeatNumber,
 	})
 

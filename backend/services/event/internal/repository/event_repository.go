@@ -40,6 +40,12 @@ type TicketTierRepository interface {
 	UpdateBatchTicketAvailability(ctx context.Context, req *UpdateBatchTicketAvailabilityRequest) error
 }
 
+type ReservedOrCompensateBatchSeats struct {
+	SeatIds               []uuid.UUID
+	ReservedByBookingId   uuid.UUID
+	Action                domain.ReserveSeatAction
+	ReservedTimeInMinutes int32
+}
 type SeatRepository interface {
 	// Create inserts a new seat into the database
 	Create(ctx context.Context, seat *domain.Seat) error
@@ -69,4 +75,6 @@ type SeatRepository interface {
 	GetAvailableSeatsByTier(ctx context.Context, tierID uuid.UUID) ([]*domain.Seat, error)
 
 	GetSeatsBySeatIds(ctx context.Context, seatIds []uuid.UUID) ([]domain.Seat, error)
+
+	ReservedOrCompensateBatchSeats(ctx context.Context, req *ReservedOrCompensateBatchSeats) (bool, error)
 }
