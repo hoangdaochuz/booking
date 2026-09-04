@@ -9,7 +9,7 @@ func WithSecond(c *CronJobManager) {
 }
 
 func WithCronjobErrHandler(c *CronJobManager) {
-	c.withErrHandler = func(ctx context.Context) error {
+	c.withErrHandler = func(ctx context.Context, err error) error {
 		// TODO
 		return nil
 	}

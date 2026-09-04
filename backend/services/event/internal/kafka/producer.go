@@ -7,10 +7,10 @@ import (
 
 	"github.com/ticketbox/event/internal/domain"
 	pkgkafka "github.com/ticketbox/pkg/kafka"
+	"github.com/ticketbox/pkg/topics"
 	"go.uber.org/zap"
 )
 
-const TopicEventEvents = "event.events"
 
 type EventEventProducer struct {
 	producer *pkgkafka.Producer
@@ -18,7 +18,7 @@ type EventEventProducer struct {
 }
 
 func NewEventEventProducer(brokers []string, logger *zap.Logger) *EventEventProducer {
-	producer := pkgkafka.NewProducer(brokers, []string{TopicEventEvents}, logger)
+	producer := pkgkafka.NewProducer(brokers, []string{topics.TopicEventEvents}, logger)
 	return &EventEventProducer{producer: producer, logger: logger}
 }
 
@@ -33,12 +33,12 @@ func (p *EventEventProducer) PublishEventCreated(ctx context.Context, event *dom
 	}
 
 	evt := pkgkafka.Event{
-		Type:      "EventCreated",
+		Type:      topics.TypeEventCreated,
 		Timestamp: time.Now(),
 		Data:      data,
 	}
 
-	return p.producer.Publish(ctx, TopicEventEvents, event.ID.String(), evt)
+	return p.producer.Publish(ctx, topics.TopicEventEvents, event.ID.String(), evt)
 }
 
 func (p *EventEventProducer) Close() error {

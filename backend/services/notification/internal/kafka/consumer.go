@@ -4,6 +4,7 @@ import (
 	"context"
 
 	pkgkafka "github.com/ticketbox/pkg/kafka"
+	"github.com/ticketbox/pkg/topics"
 	"github.com/ticketbox/notification/internal/service"
 	"go.uber.org/zap"
 )
@@ -19,11 +20,11 @@ func NewNotificationConsumer(brokers []string, svc *service.NotificationService,
 	nc := &NotificationConsumer{service: svc, logger: logger}
 
 	nc.bookingConsumer = pkgkafka.NewConsumer(
-		brokers, "booking.events", "notification-booking-group",
+		brokers, topics.TopicBookingEvents, "notification-booking-group",
 		nc.handleBookingEvent, logger,
 	)
 	nc.userConsumer = pkgkafka.NewConsumer(
-		brokers, "user.events", "notification-user-group",
+		brokers, topics.TopicUserEvents, "notification-user-group",
 		nc.handleUserEvent, logger,
 	)
 
@@ -39,11 +40,11 @@ func (c *NotificationConsumer) Start(ctx context.Context) error {
 
 func (c *NotificationConsumer) handleBookingEvent(ctx context.Context, event pkgkafka.Event) error {
 	switch event.Type {
-	case "BookingConfirmed":
+	case topics.TypeBookingConfirmed:
 		return c.service.SendBookingConfirmation(ctx, event.Data)
-	case "BookingFailed":
+	case topics.TypeBookingFailed:
 		return c.service.SendBookingFailure(ctx, event.Data)
-	case "BookingCancelled":
+	case topics.TypeBookingCancelled:
 		return c.service.SendBookingCancellation(ctx, event.Data)
 	default:
 		return nil
@@ -52,7 +53,7 @@ func (c *NotificationConsumer) handleBookingEvent(ctx context.Context, event pkg
 
 func (c *NotificationConsumer) handleUserEvent(ctx context.Context, event pkgkafka.Event) error {
 	switch event.Type {
-	case "UserRegistered":
+	case topics.TypeUserRegistered:
 		return c.service.SendWelcomeEmail(ctx, event.Data)
 	default:
 		return nil

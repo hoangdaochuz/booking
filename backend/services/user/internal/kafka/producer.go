@@ -6,11 +6,11 @@ import (
 	"time"
 
 	pkgkafka "github.com/ticketbox/pkg/kafka"
+	"github.com/ticketbox/pkg/topics"
 	"github.com/ticketbox/user/internal/domain"
 	"go.uber.org/zap"
 )
 
-const TopicUserEvents = "user.events"
 
 type UserEventProducer struct {
 	producer *pkgkafka.Producer
@@ -18,7 +18,7 @@ type UserEventProducer struct {
 }
 
 func NewUserEventProducer(brokers []string, logger *zap.Logger) *UserEventProducer {
-	producer := pkgkafka.NewProducer(brokers, []string{TopicUserEvents}, logger)
+	producer := pkgkafka.NewProducer(brokers, []string{topics.TopicUserEvents}, logger)
 	return &UserEventProducer{producer: producer, logger: logger}
 }
 
@@ -33,12 +33,12 @@ func (p *UserEventProducer) PublishUserRegistered(ctx context.Context, user *dom
 	}
 
 	event := pkgkafka.Event{
-		Type:      "UserRegistered",
+		Type:      topics.TypeUserRegistered,
 		Timestamp: time.Now(),
 		Data:      data,
 	}
 
-	return p.producer.Publish(ctx, TopicUserEvents, user.ID.String(), event)
+	return p.producer.Publish(ctx, topics.TopicUserEvents, user.ID.String(), event)
 }
 
 func (p *UserEventProducer) Close() error {
