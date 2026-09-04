@@ -12,7 +12,7 @@ echo "$REGISTER_RESP" | jq .
 
 # Promote to admin
 echo "==> Promoting to admin..."
-docker exec backend-postgres-user-1 psql -U ticketbox -d ticketbox_user -c \
+podman exec backend-postgres-user-1 psql -U ticketbox -d ticketbox_user -c \
   "UPDATE users SET role='admin' WHERE email='admin@ticketbox.com';"
 
 # Re-login to get admin token

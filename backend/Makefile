@@ -22,10 +22,10 @@ build:
 	done
 
 up:
-	docker-compose up -d
+	podman compose up -d
 
 down:
-	docker-compose down
+	podman compose down
 
 migrate:
 	@bash scripts/migrate.sh
@@ -40,7 +40,7 @@ test-load:
 	@bash scripts/load-test.sh
 
 logs:
-	docker-compose logs -f
+	podman compose logs -f
 
 clean:
 	rm -rf bin/
