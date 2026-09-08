@@ -1,520 +1,342 @@
-# TicketBox Database ERD Documentation
+# Database ERD — TicketBox
 
-## Overview
+> Nguồn: scan từ các migration files tại `backend/services/*/migrations/` (cập nhật 2026-09-08).
+> Hệ thống dùng kiến trúc **database-per-service** — mỗi service có PostgreSQL riêng, nên **không có foreign key xuyên suốt giữa các service**. Các quan hệ chéo service (nét đứt trong sơ đồ tổng quan) là **tham chiếu logic theo UUID**.
 
-TicketBox uses a **microservices database-per-service** architecture. Each service has its own PostgreSQL database:
+## Tổng quan các databases
 
-| Database | Port | Purpose |
-|----------|------|---------|
-| `ticketbox_user` | 5433 | User authentication & profiles |
-| `ticketbox_event` | 5434 | Events, venues, ticket tiers & availability |
-| `ticketbox_booking` | 5435 | Bookings, booking items, outbox pattern |
-| `ticketbox_notification` | 5436 | Notification queue for Kafka consumption |
+| Database | Service | Port | Tables |
+|---|---|---|---|
+| `ticketbox_user` | user | 5433 | `users`, `refresh_tokens` |
+| `ticketbox_event` | event | 5434 | `events`, `ticket_tiers`, `seats`, `events_read_model` |
+| `ticketbox_booking` | booking | 5435 | `bookings`, `booking_items`, `bookings_read_model`, `outbox` |
+| `ticketbox_notification` | notification | 5436 | `notifications` |
+| `ticketbox_payment` | payment | 5437 | `payments` |
+| `ticketbox_saga` | saga | 5438 | `sagas`, `saga_steps` |
+| `ticketbox_scheduler` | scheduler | — | `scheduler_configs`, `outbound_events` |
 
----
-
-## 1. User Service Database (`ticketbox_user`)
-
-### Schema Diagram
+## Sơ đồ tổng quan (quan hệ logic chéo service)
 
 ```mermaid
 erDiagram
-    USERS ||--o{ REFRESH_TOKENS : has
-    USERS {
+    users ||--o{ refresh_tokens : "FK"
+    users ||--o{ bookings : "user_id (logic)"
+    events ||--o{ ticket_tiers : "FK"
+    events ||--o{ seats : "FK"
+    ticket_tiers ||--o{ seats : "FK"
+    bookings ||--o{ booking_items : "FK"
+    bookings ||--o{ sagas : "booking_id (logic)"
+    sagas ||--o{ saga_steps : "FK"
+    bookings ||--o{ payments : "booking_id (logic)"
+    bookings ||--o{ seats : "booking_id / reserved_by_booking_id (logic)"
+    ticket_tiers ||--o{ booking_items : "ticket_tier_id (logic)"
+    booking_items }o--o| seats : "seat_ids UUID[] (logic)"
+```
+
+---
+
+## 1. `ticketbox_user` — User Service (:50051)
+
+```mermaid
+erDiagram
+    users {
         uuid id PK
-        varchar[255] email UK
-        varchar[255] password_hash
-        varchar[255] name
-        varchar[50] role
+        varchar email UK "UNIQUE, NOT NULL"
+        varchar password_hash "NOT NULL — bcrypt"
+        varchar name "NOT NULL"
+        varchar role "DEFAULT 'user' ('user' | 'admin')"
         timestamptz created_at
         timestamptz updated_at
     }
-    REFRESH_TOKENS {
+    refresh_tokens {
         uuid id PK
-        uuid user_id FK
-        varchar[255] token_hash UK
-        timestamptz expires_at
-        timestamptz revoked_at
+        uuid user_id FK "NOT NULL"
+        varchar token_hash UK "UNIQUE, NOT NULL"
+        timestamptz expires_at "NOT NULL"
+        timestamptz revoked_at "NULL = còn hiệu lực"
         timestamptz created_at
     }
+    users ||--o{ refresh_tokens : "ON DELETE CASCADE"
 ```
 
-### Tables
-
-#### `users`
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | UUID | PRIMARY KEY, DEFAULT uuid_generate_v4() | User unique identifier |
-| `email` | VARCHAR(255) | UNIQUE, NOT NULL | User email address (login) |
-| `password_hash` | VARCHAR(255) | NOT NULL | Bcrypt hashed password |
-| `name` | VARCHAR(255) | NOT NULL | Full user name |
-| `role` | VARCHAR(50) | NOT NULL, DEFAULT 'user' | User role ('user', 'admin') |
-| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Account creation timestamp |
-| `updated_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Last profile update |
-
-**Indexes:**
-- `idx_users_email` on `email`
-
-#### `refresh_tokens`
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | UUID | PRIMARY KEY, DEFAULT uuid_generate_v4() | Token identifier |
-| `user_id` | UUID | NOT NULL, FK→users(id) ON DELETE CASCADE | Associated user |
-| `token_hash` | VARCHAR(255) | UNIQUE, NOT NULL | Hashed refresh token |
-| `expires_at` | TIMESTAMPTZ | NOT NULL | Token expiration |
-| `revoked_at` | TIMESTAMPTZ | NULLABLE | Revocation timestamp (NULL if active) |
-| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Token issuance time |
-
-**Indexes:**
-- `idx_refresh_tokens_user_id` on `user_id`
-- `idx_refresh_tokens_token_hash` on `token_hash`
+**Indexes:** `idx_users_email(email)` · `idx_refresh_tokens_user_id(user_id)` · `idx_refresh_tokens_token_hash(token_hash)`
 
 ---
 
-## 2. Event Service Database (`ticketbox_event`)
-
-### Schema Diagram
+## 2. `ticketbox_event` — Event Service (:50052)
 
 ```mermaid
 erDiagram
-    EVENTS ||--o{ TICKET_TIERS : has
-    EVENTS ||--o{ SEATS : has
-    EVENTS {
+    events {
         uuid id PK
-        varchar[500] title
+        varchar title "NOT NULL, max 500"
         text description
-        varchar[100] category
-        varchar[500] venue
-        varchar[500] location
-        timestamptz date
+        varchar category "NOT NULL"
+        varchar venue "NOT NULL"
+        varchar location "NOT NULL"
+        timestamptz date "NOT NULL"
         text image_url
-        varchar[50] status
+        varchar status "DEFAULT 'active'"
         timestamptz created_at
         timestamptz updated_at
     }
-    TICKET_TIERS {
+    ticket_tiers {
         uuid id PK
-        uuid event_id FK
-        varchar[255] name
-        bigint price_cents
-        int total_quantity
-        int available_quantity
-        int version
+        uuid event_id FK "NOT NULL"
+        varchar name "NOT NULL (VIP, General...)"
+        bigint price_cents "NOT NULL"
+        int total_quantity "NOT NULL"
+        int available_quantity "NOT NULL — guard chống double-booking"
+        int version "DEFAULT 1 — optimistic lock"
         timestamptz created_at
     }
-    TICKET_TIERS ||--o{ SEATS : has
-    SEATS {
+    seats {
         uuid id PK
-        uuid event_id FK
-        uuid ticket_tier_id FK
-        seat_status status
-        uuid booking_id
-        uuid order_id
-        jsonb position
+        uuid event_id FK "NOT NULL"
+        uuid ticket_tier_id FK "NOT NULL"
+        seat_status status "available | reserved | booked"
+        uuid booking_id "NULL — tham chiếu logic booking svc"
+        uuid order_id "DEFAULT uuid_v4()"
+        jsonb position "vị trí trên seat-map"
+        timestamptz reservation_expired_at "hạn giữ chỗ — reservation cleaner"
+        uuid reserved_by_booking_id "NULL — logic ref booking svc"
         timestamptz created_at
         timestamptz updated_at
-        timestamptz deleted_at
+        timestamptz deleted_at "soft delete"
     }
-    EVENTS_READ_MODEL {
+    events_read_model {
         uuid id PK
-        varchar[500] title
+        varchar title "NOT NULL"
         text description
-        varchar[100] category
-        varchar[500] venue
-        varchar[500] location
-        timestamptz date
+        varchar category "NOT NULL"
+        varchar venue "NOT NULL"
+        varchar location "NOT NULL"
+        timestamptz date "NOT NULL"
         text image_url
-        varchar[50] status
-        bigint min_price_cents
-        int total_available
-        jsonb tiers_json
+        varchar status "NOT NULL"
+        bigint min_price_cents "denormalized"
+        int total_available "denormalized"
+        jsonb tiers_json "denormalized"
         timestamptz updated_at
     }
+    events ||--o{ ticket_tiers : "ON DELETE CASCADE"
+    events ||--o{ seats : "ON DELETE CASCADE"
+    ticket_tiers ||--o{ seats : "ON DELETE CASCADE"
 ```
 
-### Tables
+**Enums:**
+- `seat_status`: `available` | `reserved` | `booked`
 
-#### `events`
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | UUID | PRIMARY KEY, DEFAULT uuid_generate_v4() | Event unique identifier |
-| `title` | VARCHAR(500) | NOT NULL | Event name |
-| `description` | TEXT | | Event details |
-| `category` | VARCHAR(100) | NOT NULL | Event category (concert, sports, theater, etc.) |
-| `venue` | VARCHAR(500) | NOT NULL | Venue name |
-| `location` | VARCHAR(500) | NOT NULL | Full address/location |
-| `date` | TIMESTAMPTZ | NOT NULL | Event datetime |
-| `image_url` | TEXT | | Promo image URL |
-| `status` | VARCHAR(50) | NOT NULL, DEFAULT 'active' | 'active', 'cancelled', 'sold_out' |
-| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Creation timestamp |
-| `updated_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Last update |
+**Indexes:** `idx_events_category`, `idx_events_date`, `idx_events_status` · `idx_ticket_tiers_event_id` · `idx_seats_event_id`, `idx_seats_tier_id`, `idx_seats_status` (partial `WHERE deleted_at IS NULL`) · `idx_seats_booking_id` (partial `WHERE booking_id IS NOT NULL`)
 
-**Indexes:**
-- `idx_events_category` on `category`
-- `idx_events_date` on `date`
-- `idx_events_status` on `status`
-
-#### `ticket_tiers`
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | UUID | PRIMARY KEY, DEFAULT uuid_generate_v4() | Tier identifier |
-| `event_id` | UUID | NOT NULL, FK→events(id) ON DELETE CASCADE | Parent event |
-| `name` | VARCHAR(255) | NOT NULL | Tier name (VIP, General, etc.) |
-| `price_cents` | BIGINT | NOT NULL | Price in cents (e.g., 5000 = $50.00) |
-| `total_quantity` | INT | NOT NULL | Total tickets for this tier |
-| `available_quantity` | INT | NOT NULL | Currently available (locked with `SELECT FOR UPDATE`) |
-| `version` | INT | NOT NULL, DEFAULT 1 | Optimistic locking version |
-| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Tier creation |
-
-**Indexes:**
-- `idx_ticket_tiers_event_id` on `event_id`
-
-**Critical Note:** `available_quantity` is updated using `SELECT FOR UPDATE` row-level locking to prevent double-booking under high concurrency.
-
-#### `seats`
-Individual seat tracking for venue layouts with reserved seating.
-
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | UUID | PRIMARY KEY, DEFAULT uuid_generate_v4() | Seat identifier |
-| `event_id` | UUID | NOT NULL, FK→events(id) ON DELETE CASCADE | Parent event |
-| `ticket_tier_id` | UUID | NOT NULL, FK→ticket_tiers(id) ON DELETE CASCADE | Associated ticket tier |
-| `status` | seat_status | NOT NULL, DEFAULT 'available' | 'available', 'reserved', 'booked' |
-| `booking_id` | UUID | | Associated booking when booked |
-| `order_id` | UUID | | Order identifier for tracking |
-| `position` | JSONB | | Seat position (row, seat number, coordinates) |
-| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Creation timestamp |
-| `updated_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Last update |
-| `deleted_at` | TIMESTAMPTZ | | Soft delete timestamp |
-
-**Indexes:**
-- `idx_seats_event_id` on `event_id`
-- `idx_seats_ticket_tier_id` on `ticket_tier_id`
-- `idx_seats_status` on `status`
-- `idx_seats_booking_id` on `booking_id` WHERE `booking_id IS NOT NULL`
-
-#### `events_read_model`
-Materialized view for efficient event listing with pre-aggregated data.
-
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | UUID | PRIMARY KEY | Event ID (denormalized) |
-| `title`, `description`, `category`, `venue`, `location`, `date`, `image_url`, `status` | — | — | Denormalized from `events` |
-| `min_price_cents` | BIGINT | | Minimum tier price for filtering |
-| `total_available` | INT | | Sum of all tier availability |
-| `tiers_json` | JSONB | | Pre-computed tier data for frontend |
-| `updated_at` | TIMESTAMPTZ | NOT NULL | Last sync timestamp |
+**Ghi chú:**
+- `ticket_tiers.available_quantity` + `version` là cơ chế chống double-booking mức tier (pessimistic `SELECT ... FOR UPDATE` / optimistic theo `BOOKING_MODE`).
+- `seats.reservation_expired_at` phục vụ job **reservation-cleaner** của scheduler service — hết hạn thì seat trả về `available`.
+- `events_read_model` là read model denormalized cho truy vấn listing nhanh (CQRS-style).
 
 ---
 
-## 3. Booking Service Database (`ticketbox_booking`)
-
-### Schema Diagram
+## 3. `ticketbox_booking` — Booking Service (:50053)
 
 ```mermaid
 erDiagram
-    BOOKINGS ||--o{ BOOKING_ITEMS : contains
-    BOOKINGS {
+    bookings {
         uuid id PK
-        uuid user_id
-        uuid event_id
-        varchar[50] status
-        bigint total_amount_cents
-        int version
+        uuid user_id "NOT NULL — logic ref users"
+        uuid event_id "NOT NULL — logic ref events"
+        varchar status "DEFAULT 'PENDING' (PENDING | CONFIRMED | FAILED | CANCELLED...)"
+        bigint total_amount_cents "DEFAULT 0"
+        int version "DEFAULT 1 — optimistic lock"
         timestamptz created_at
     }
-    BOOKING_ITEMS {
+    booking_items {
         uuid id PK
-        uuid booking_id FK
-        uuid ticket_tier_id
-        int quantity
-        bigint unit_price_cents
+        uuid booking_id FK "NOT NULL"
+        uuid ticket_tier_id "NOT NULL — logic ref ticket_tiers"
+        int quantity "NOT NULL"
+        bigint unit_price_cents "NOT NULL — snapshot giá"
+        uuid_array seat_ids "DEFAULT '{}' — logic ref seats"
     }
-    BOOKINGS_READ_MODEL {
+    bookings_read_model {
         uuid id PK
-        uuid user_id
-        uuid event_id
-        varchar[500] event_title
-        timestamptz event_date
-        varchar[500] event_venue
-        varchar[50] status
-        bigint total_amount_cents
-        jsonb items_json
+        uuid user_id "NOT NULL"
+        uuid event_id "NOT NULL"
+        varchar event_title "denormalized"
+        timestamptz event_date "denormalized"
+        varchar event_venue "denormalized"
+        varchar status "NOT NULL"
+        bigint total_amount_cents "NOT NULL"
+        jsonb items_json "denormalized"
         timestamptz created_at
     }
-    OUTBOX {
+    outbox {
         uuid id PK
-        varchar[255] event_type
-        varchar[255] event_key
-        jsonb payload
-        boolean published
+        varchar event_type "NOT NULL"
+        varchar event_key "NOT NULL — Kafka partition key"
+        jsonb payload "NOT NULL"
+        boolean published "DEFAULT FALSE"
         timestamptz created_at
     }
+    bookings ||--o{ booking_items : "ON DELETE CASCADE"
 ```
 
-### Tables
+**Indexes:** `idx_bookings_user_id`, `idx_bookings_event_id`, `idx_bookings_status` · `idx_booking_items_booking_id` · `idx_bookings_read_user_id` · `idx_outbox_unpublished` (partial `WHERE published = FALSE`)
 
-#### `bookings`
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | UUID | PRIMARY KEY, DEFAULT uuid_generate_v4() | Booking identifier |
-| `user_id` | UUID | NOT NULL | User ID (from User Service, no FK) |
-| `event_id` | UUID | NOT NULL | Event ID (from Event Service, no FK) |
-| `status` | VARCHAR(50) | NOT NULL, DEFAULT 'PENDING' | 'PENDING', 'CONFIRMED', 'CANCELLED' |
-| `total_amount_cents` | BIGINT | NOT NULL, DEFAULT 0 | Total booking cost |
-| `version` | INT | NOT NULL, DEFAULT 1 | Optimistic locking |
-| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Booking creation |
-
-**Indexes:**
-- `idx_bookings_user_id` on `user_id`
-- `idx_bookings_event_id` on `event_id`
-- `idx_bookings_status` on `status`
-
-#### `booking_items`
-Line items for each booking (multi-tier purchases).
-
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | UUID | PRIMARY KEY, DEFAULT uuid_generate_v4() | Item identifier |
-| `booking_id` | UUID | NOT NULL, FK→bookings(id) ON DELETE CASCADE | Parent booking |
-| `ticket_tier_id` | UUID | NOT NULL | Tier ID (from Event Service, no FK) |
-| `quantity` | INT | NOT NULL | Number of tickets |
-| `unit_price_cents` | BIGINT | NOT NULL | Price per ticket (snapshot) |
-
-**Indexes:**
-- `idx_booking_items_booking_id` on `booking_id`
-
-#### `bookings_read_model`
-Denormalized view for user booking history.
-
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | UUID | PRIMARY KEY | Booking ID |
-| `user_id` | UUID | NOT NULL | User ID |
-| `event_id` | UUID | NOT NULL | Event ID |
-| `event_title` | VARCHAR(500) | | Denormalized event name |
-| `event_date` | TIMESTAMPTZ | | Denormalized event date |
-| `event_venue` | VARCHAR(500) | | Denormalized venue |
-| `status` | VARCHAR(50) | NOT NULL | Booking status |
-| `total_amount_cents` | BIGINT | NOT NULL | Total cost |
-| `items_json` | JSONB | | Serialized booking items |
-| `created_at` | TIMESTAMPTZ | NOT NULL | Creation timestamp |
-
-**Indexes:**
-- `idx_bookings_read_user_id` on `user_id`
-
-#### `outbox`
-Transactional outbox pattern for reliable Kafka event publishing.
-
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | UUID | PRIMARY KEY, DEFAULT uuid_generate_v4() | Outbox entry ID |
-| `event_type` | VARCHAR(255) | NOT NULL | Kafka event type (e.g., 'booking.created') |
-| `event_key` | VARCHAR(255) | NOT NULL | Kafka partitioning key |
-| `payload` | JSONB | NOT NULL | Event payload |
-| `published` | BOOLEAN | NOT NULL, DEFAULT FALSE | Publish status |
-| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Creation time |
-
-**Indexes:**
-- `idx_outbox_unpublished` on `published` WHERE `published = FALSE`
+**Ghi chú:**
+- `outbox` implement **transactional outbox pattern** — event chỉ publish ra Kafka sau khi DB transaction commit thành công (at-least-once).
+- `bookings_read_model` denormalize dữ liệu event (title/date/venue) để trang my-tickets không cần gọi sang event service.
 
 ---
 
-## 4. Notification Service Database (`ticketbox_notification`)
-
-### Schema Diagram
+## 4. `ticketbox_notification` — Notification Service
 
 ```mermaid
 erDiagram
-    NOTIFICATIONS {
+    notifications {
         uuid id PK
-        varchar[100] type
-        varchar[255] recipient
-        varchar[50] channel
-        jsonb payload
-        varchar[50] status
+        varchar type "NOT NULL"
+        varchar recipient "NOT NULL — email/phone"
+        varchar channel "DEFAULT 'email'"
+        jsonb payload "NOT NULL"
+        varchar status "DEFAULT 'PENDING' (PENDING | SENT | FAILED)"
         timestamptz sent_at
         timestamptz created_at
     }
 ```
 
-### Tables
+**Indexes:** `idx_notifications_status` · `idx_notifications_recipient`
 
-#### `notifications`
-Outbox pattern for Kafka consumer. Notification worker polls this table and sends via email/SMS.
-
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | UUID | PRIMARY KEY, DEFAULT uuid_generate_v4() | Notification ID |
-| `type` | VARCHAR(100) | NOT NULL | Notification type ('booking.confirmation', 'booking.cancelled') |
-| `recipient` | VARCHAR(255) | NOT NULL | Destination email/phone |
-| `channel` | VARCHAR(50) | NOT NULL, DEFAULT 'email' | Delivery channel |
-| `payload` | JSONB | NOT NULL | Notification template data |
-| `status` | VARCHAR(50) | NOT NULL, DEFAULT 'PENDING' | 'PENDING', 'SENT', 'FAILED' |
-| `sent_at` | TIMESTAMPTZ | | Actual send timestamp |
-| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Queue time |
-
-**Indexes:**
-- `idx_notifications_status` on `status`
-- `idx_notifications_recipient` on `recipient`
+**Ghi chú:** notification là Kafka consumer thuần (không có gRPC), ghi nhận notification cần gửi và trạng thái đã gửi.
 
 ---
 
-## Cross-Service Relationships
-
-Since each service has its own database, foreign key relationships **across services are handled logically** (not with database FKs):
+## 5. `ticketbox_payment` — Payment Service (:50054 gRPC / :8081 HTTP)
 
 ```mermaid
-graph TB
-    subgraph USER_DB["User DB (ticketbox_user:5433)"]
-        USERS["users"]
-        REFRESH["refresh_tokens"]
-        USERS -->|"1:N"| REFRESH
-    end
-
-    subgraph EVENT_DB["Event DB (ticketbox_event:5434)"]
-        EVENTS["events"]
-        TIERS["ticket_tiers"]
-        EVENTS -->|"1:N"| TIERS
-    end
-
-    subgraph BOOKING_DB["Booking DB (ticketbox_booking:5435)"]
-        BOOKINGS["bookings"]
-        ITEMS["booking_items"]
-        OUTBOX["outbox"]
-        BOOKINGS -->|"1:N"| ITEMS
-    end
-
-    subgraph NOTIF_DB["Notification DB (ticketbox_notification:5436)"]
-        NOTIFICATIONS["notifications"]
-    end
-
-    subgraph KAFKA["Kafka"]
-        TOPIC["booking.created"]
-    end
-
-    %% Logical relationships (dashed lines)
-    USERS -.->|user_id| BOOKINGS
-    EVENTS -.->|event_id| BOOKINGS
-    EVENTS -.->|event_id| ITEMS
-    TIERS -.->|ticket_tier_id| ITEMS
-
-    %% Kafka flow
-    OUTBOX -->|"publish"| TOPIC
-    TOPIC -->|"consume"| NOTIFICATIONS
-
-    style USER_DB fill:#e1f5fe
-    style EVENT_DB fill:#f3e5f5
-    style BOOKING_DB fill:#e8f5e9
-    style NOTIF_DB fill:#fff3e0
-    style KAFKA fill:#fce4ec
+erDiagram
+    payments {
+        uuid id PK
+        uuid user_id "NOT NULL — logic ref users"
+        uuid booking_id "NULL — logic ref bookings"
+        uuid order_id "NULL"
+        payment_status status "pending | success | fail | cancel | timeout"
+        bigint price "NOT NULL"
+        varchar currency "NOT NULL"
+        uuid transaction_id
+        varchar payment_method "stripe | momo/zalopay (stub)"
+        varchar payment_intent_id "Stripe PaymentIntent ID, max 250"
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at "soft delete"
+    }
 ```
 
-**Key Points:**
-- `bookings.user_id` references `users.id` logically (validated via gRPC call)
-- `bookings.event_id` references `events.id` logically
-- `booking_items.ticket_tier_id` references `ticket_tiers.id` logically
-- All cross-service communication uses gRPC for sync operations
-- Kafka for async events (booking.created → notification)
+**Enums:**
+- `payment_status`: `pending` | `success` | `fail` | `cancel` | `timeout`
 
-**Key Points:**
-- `bookings.user_id` references `users.id` logically (validated via gRPC call)
-- `bookings.event_id` references `events.id` logically
-- `booking_items.ticket_tier_id` references `ticket_tiers.id` logically
-- All cross-service communication uses gRPC for sync operations
-- Kafka for async events (booking.created → notification)
+**Ghi chú:** kết quả payment đi qua Stripe webhook (:8081) → Kafka → saga consumer, không có FK sang booking.
 
 ---
 
-## Data Types & Conventions
-
-| Convention | Description |
-|------------|-------------|
-| UUID Primary Keys | All tables use UUID v4 with `uuid-ossp` extension |
-| `*_cents` | Monetary values stored as integers (cents) to avoid floating point |
-| `*_at` | Timestamp columns use `TIMESTAMPTZ` (timezone-aware) |
-| `*_url` | URLs stored as `TEXT` (unlimited length) |
-| `*_json`, `*_jsonb` | JSON data stored as JSONB for queryability |
-| `version` | Optimistic locking counter (used in booking/event updates) |
-| `status` | Enum-like strings with explicit values in code |
-
----
-
-## Concurrency & Locking
-
-### Double-Booking Prevention
-The critical path for preventing double bookings:
+## 6. `ticketbox_saga` — Saga Service (:50055)
 
 ```mermaid
-sequenceDiagram
-    participant BS as Booking Service
-    participant ES as Event Service
-    participant DB as PostgreSQL
-
-    BS->>ES: UpdateTicketAvailability(tier_id, quantity)
-    ES->>DB: BEGIN TRANSACTION
-    ES->>DB: SELECT * FROM ticket_tiers<br/>WHERE id = $1<br/>FOR UPDATE
-    Note over DB: 🔒 Row-level lock acquired
-    DB-->>ES: available_quantity
-    ES->>ES: Check: available_quantity >= requested
-    ES->>DB: UPDATE ticket_tiers<br/>SET available_quantity = available_quantity - requested<br/>WHERE id = $1
-    ES->>DB: COMMIT TRANSACTION
-    Note over DB: Lock released
-    ES-->>BS: Success / Failure
+erDiagram
+    sagas {
+        uuid id PK
+        uuid booking_id "NOT NULL — logic ref bookings"
+        varchar name "NOT NULL"
+        saga_status status "PENDING | WAIT_FOR_PAYMENT | PROCESSING | COMPLETED | ROLLING_BACK | ROLLED_BACK | FAIL"
+        int current_step_index "DEFAULT 0 — resume point"
+        varchar payment_intent_id "khớp webhook PaymentIntent"
+        timestamptz created_at
+    }
+    saga_steps {
+        uuid id PK
+        uuid saga_id FK "NOT NULL"
+        varchar name "NOT NULL"
+        timestamptz executed_at
+        timestamptz compensated_at
+        step_status status "PENDING | EXECUTING | COMPLETED | COMPENSATING | COMPENSATED | FAILED"
+        int order "thứ tự step"
+        boolean should_pause_for_payment "true ở step create payment intent"
+    }
+    sagas ||--o{ saga_steps : "ON DELETE CASCADE"
 ```
 
-- `SELECT FOR UPDATE` acquires an exclusive row lock
-- Concurrent bookings **serialize** at the ticket tier level
-- `version` column enables optimistic locking as an alternative mode
-- Configurable via `BOOKING_MODE` env var: `pessimistic` (default) or `optimistic`
+**Enums:**
+- `saga_status`: `PENDING` | `WAIT_FOR_PAYMENT` | `PROCESSING` | `COMPLETED` | `ROLLING_BACK` | `ROLLED_BACK` | `FAIL`
+- `step_status`: `PENDING` | `EXECUTING` | `COMPLETED` | `COMPENSATING` | `COMPENSATED` | `FAILED`
+
+**Ghi chú:** saga pause/reseme qua payment webhook — state được persist tại đây và rebuild (`reBuildSagaHandler`) khi resume từ `current_step_index + 1`. `payment_intent_id` dùng để khớp event payment webhook với đúng saga.
 
 ---
 
-## Read Models & CQRS
+## 7. `ticketbox_scheduler` — Scheduler Service
 
-Both Event and Booking services maintain **read model** tables denormalized for queries:
+```mermaid
+erDiagram
+    scheduler_configs {
+        uuid id PK
+        varchar name "NOT NULL, UNIQUE"
+        int timeout "DEFAULT 0 (giây)"
+        int version "DEFAULT 1"
+        varchar interval_expression "NOT NULL — cron expression"
+        boolean is_enable "DEFAULT TRUE"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    outbound_events {
+        uuid id PK
+        varchar topic "NOT NULL — Kafka topic"
+        varchar event_type "NOT NULL"
+        outbound_status status "pending | published"
+        timestamptz published_at
+        jsonb payload
+        timestamptz created_at
+    }
+```
 
-| Service | Write Model | Read Model |
-|---------|-------------|------------|
-| Event | `events` + `ticket_tiers` | `events_read_model` |
-| Booking | `bookings` + `booking_items` | `bookings_read_model` |
+**Enums:**
+- `outbound_status`: `pending` | `published`
 
-Read models are updated:
-1. Synchronously after write operations
-2. Via background sync processes
-3. Contain pre-aggregated data (min price, total availability)
+**Ghi chú:**
+- `scheduler_configs` cấu hình động các cronjob (VD: `reservation-cleaner` dọn seat hết hạn) — cron interval, timeout, bật/tắt.
+- `outbound_events` là outbox của scheduler: event sinh ra từ job chỉ publish Kafka sau khi commit, đảm bảo at-least-once.
 
 ---
 
-## PostgreSQL Extensions
+## Bản đồ tham chiếu logic chéo service (không có FK)
 
-Each database enables:
-- `uuid-ossp` — UUID generation functions
+| Cột (table @ service) | Tham chiếu logic tới | Ghi chú |
+|---|---|---|
+| `bookings.user_id` @ booking | `users.id` @ user | |
+| `bookings.event_id` @ booking | `events.id` @ event | |
+| `booking_items.ticket_tier_id` @ booking | `ticket_tiers.id` @ event | |
+| `booking_items.seat_ids[]` @ booking | `seats.id` @ event | UUID array |
+| `seats.booking_id`, `seats.reserved_by_booking_id` @ event | `bookings.id` @ booking | |
+| `payments.user_id` @ payment | `users.id` @ user | |
+| `payments.booking_id` @ payment | `bookings.id` @ booking | |
+| `sagas.booking_id` @ saga | `bookings.id` @ booking | |
+| `sagas.payment_intent_id` @ saga | Stripe PaymentIntent | khớp webhook |
+
+> Tính toàn vẹn chéo service được đảm bảo bởi **saga orchestration** (compensating actions khi một bước fail), không phải ràng buộc DB.
 
 ---
 
-## Migration Files
+## Quy ước chung
 
-Migrations use **golang-migrate** format with up/down files:
+| Quy ước | Mô tả |
+|---|---|
+| UUID Primary Keys | Tất cả bảng dùng UUID v4 (`uuid-ossp` extension) |
+| `*_cents` | Tiền tệ lưu số nguyên cents (`price_cents`, `total_amount_cents`) tránh sai số float |
+| `*_at` | Timestamp dùng `TIMESTAMPTZ` (timezone-aware) |
+| `version` | Optimistic locking counter |
+| `deleted_at` | Soft delete (`seats`, `payments`) |
+| `*_json` / JSONB | Payload/ dữ liệu denormalized |
+| Read models | `events_read_model`, `bookings_read_model` — CQRS-style denormalization |
+| Outbox | `outbox` @ booking, `outbound_events` @ scheduler — transactional outbox → Kafka |
 
-```
-services/
-├─ user/
-│  └─ migrations/
-│     ├─ 000001_init.up.sql
-│     └─ 000001_init.down.sql
-├─ event/
-│  └─ migrations/
-│     ├─ 000001_init.up.sql
-│     └─ 000001_init.down.sql
-├─ booking/
-│  └─ migrations/
-│     ├─ 000001_init.up.sql
-│     └─ 000001_init.down.sql
-└─ notification/
-   └─ migrations/
-      ├─ 000001_init.up.sql
-      └─ 000001_init.down.sql
-```
+## Migrations
 
-Run all migrations: `make migrate` from `backend/` directory.
+Dùng **golang-migrate** (up/down) tại `backend/services/{name}/migrations/`. Chạy tất cả: `make migrate` từ `backend/`.

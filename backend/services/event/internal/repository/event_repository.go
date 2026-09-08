@@ -46,6 +46,11 @@ type ReservedOrCompensateBatchSeats struct {
 	Action                domain.ReserveSeatAction
 	ReservedTimeInMinutes int32
 }
+
+type UndoReservedExpiredSeatsResult struct {
+	BookingIdSeatIdsMap map[uuid.UUID][]uuid.UUID
+}
+
 type SeatRepository interface {
 	// Create inserts a new seat into the database
 	Create(ctx context.Context, seat *domain.Seat) error
@@ -77,4 +82,6 @@ type SeatRepository interface {
 	GetSeatsBySeatIds(ctx context.Context, seatIds []uuid.UUID) ([]domain.Seat, error)
 
 	ReservedOrCompensateBatchSeats(ctx context.Context, req *ReservedOrCompensateBatchSeats) (bool, error)
+
+	UndoReservedExpiredSeats(ctx context.Context) (*UndoReservedExpiredSeatsResult, error)
 }

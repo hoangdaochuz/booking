@@ -13,6 +13,7 @@ const (
 	StatusConfirmed BookingStatus = "CONFIRMED"
 	StatusFailed    BookingStatus = "FAILED"
 	StatusCancelled BookingStatus = "CANCELLED"
+	StatusExpired   BookingStatus = "EXPIRED"
 )
 
 type Booking struct {

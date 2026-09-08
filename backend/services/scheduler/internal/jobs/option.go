@@ -1,6 +1,8 @@
 package cronjob
 
-import "context"
+import (
+	"context"
+)
 
 type Option func(c *CronJobManager)
 
@@ -10,7 +12,7 @@ func WithSecond(c *CronJobManager) {
 
 func WithCronjobErrHandler(c *CronJobManager) {
 	c.withErrHandler = func(ctx context.Context, err error) error {
-		// TODO
+		// Send notification to slack channel
 		return nil
 	}
 }

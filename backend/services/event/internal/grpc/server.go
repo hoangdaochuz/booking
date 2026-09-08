@@ -399,3 +399,23 @@ func (s *EventServer) ReservedOrCompensateBatchSeats(ctx context.Context, req *e
 	}, nil
 
 }
+
+func (s *EventServer) UndoReservedExpiredSeats(ctx context.Context, req *eventv1.UndoReservedExpiredSeatsReq) (*eventv1.UndoReservedExpiredSeatsRes, error) {
+	result, err := s.service.UndoReservedExpiredSeats(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("[UndoReservedExpiredSeats]: fail to release expired seats: %w", err)
+	}
+
+	bookingSeatIdsMap := make(map[string]*eventv1.SeatIds, len(result.BookingIdSeatIdsMap))
+	for bookingID, seatIDs := range result.BookingIdSeatIdsMap {
+		ids := make([]string, len(seatIDs))
+		for i, seatID := range seatIDs {
+			ids[i] = seatID.String()
+		}
+		bookingSeatIdsMap[bookingID.String()] = &eventv1.SeatIds{SeatIds: ids}
+	}
+
+	return &eventv1.UndoReservedExpiredSeatsRes{
+		BookingSeatIdsMap: bookingSeatIdsMap,
+	}, nil
+}

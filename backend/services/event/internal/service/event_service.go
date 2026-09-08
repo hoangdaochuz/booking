@@ -236,3 +236,15 @@ func (s *EventService) ReservedOrCompensateBatchSeats(ctx context.Context, req *
 		ReservedTimeInMinutes: req.ReservedTimeInMinutes,
 	})
 }
+
+func (s *EventService) UndoReservedExpiredSeats(ctx context.Context) (*repository.UndoReservedExpiredSeatsResult, error) {
+	result, err := s.seatRepo.UndoReservedExpiredSeats(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("[UndoReservedExpiredSeats]: %w", err)
+	}
+
+	s.logger.Info("Released expired reserved seats",
+		zap.Int("booking_count", len(result.BookingIdSeatIdsMap)))
+
+	return result, nil
+}

@@ -716,3 +716,62 @@ func (r *PostgresSeatRepository) ReservedOrCompensateBatchSeats(ctx context.Cont
 	}
 	return true, nil
 }
+
+// UndoReservedExpiredSeats releases all seats whose reservation has expired:
+// status goes back to 'available' and every reservation marker is cleared,
+// as if no user had ever held the seat. It returns the released seat IDs
+// grouped by the booking that had reserved them, so the caller can mark
+// those bookings EXPIRED.
+//
+// The CTE locks the expired rows with SKIP LOCKED so concurrent runs of the
+// cleaner never block or fight over the same seats — a second run simply
+// skips rows already locked by the first.
+func (r *PostgresSeatRepository) UndoReservedExpiredSeats(ctx context.Context) (*UndoReservedExpiredSeatsResult, error) {
+	query := `
+		WITH expired AS (
+			SELECT id, reserved_by_booking_id
+			FROM seats
+			WHERE status = 'reserved'
+			  AND deleted_at IS NULL
+			  AND reservation_expired_at IS NOT NULL
+			  AND reservation_expired_at <= NOW()
+			FOR UPDATE SKIP LOCKED
+		)
+		UPDATE seats s
+		SET status = 'available',
+		    booking_id = NULL,
+		    reserved_by_booking_id = NULL,
+		    reservation_expired_at = NULL,
+		    updated_at = NOW()
+		FROM expired
+		WHERE s.id = expired.id
+		RETURNING expired.id, expired.reserved_by_booking_id`
+
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("undo reserved expired seats: %w", err)
+	}
+	defer rows.Close()
+
+	result := &UndoReservedExpiredSeatsResult{
+		BookingIdSeatIdsMap: make(map[uuid.UUID][]uuid.UUID),
+	}
+	for rows.Next() {
+		var seatID uuid.UUID
+		var bookingID *uuid.UUID
+		if err := rows.Scan(&seatID, &bookingID); err != nil {
+			return nil, fmt.Errorf("[UndoReservedExpiredSeats]: scan seat: %w", err)
+		}
+		// Seats reserved before reserved_by_booking_id existed have no owner;
+		// they are still released, but there is no booking to report back.
+		if bookingID == nil {
+			continue
+		}
+		result.BookingIdSeatIdsMap[*bookingID] = append(result.BookingIdSeatIdsMap[*bookingID], seatID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("[UndoReservedExpiredSeats]: iterate seats: %w", err)
+	}
+
+	return result, nil
+}

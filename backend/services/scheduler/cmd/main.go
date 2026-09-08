@@ -13,6 +13,8 @@ import (
 	"github.com/ticketbox/pkg/database"
 	"github.com/ticketbox/pkg/middleware"
 	"github.com/ticketbox/pkg/outbound"
+	bookingv1 "github.com/ticketbox/pkg/proto/booking/v1"
+	eventv1 "github.com/ticketbox/pkg/proto/event/v1"
 	schedulerv1 "github.com/ticketbox/pkg/proto/scheduler/v1"
 	redis_pkg "github.com/ticketbox/pkg/redis"
 	schedulergrpc "github.com/ticketbox/scheduler/internal/grpc"
@@ -23,6 +25,7 @@ import (
 	service_scheduler "github.com/ticketbox/scheduler/internal/service/scheduler"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -47,7 +50,7 @@ func main() {
 		Addr: "redis:6379",
 	})
 
-	_ = redis_pkg.NewClient(redisCln)
+	redisClient := redis_pkg.NewClient(redisCln)
 
 	schedulerCfgRepo := repository.NewSchedulerConfigRepo(pool, nil)
 	outboundEventRepo := repository.NewOutboundEventRepository(pool, nil)
@@ -113,8 +116,27 @@ func main() {
 	if err := cronManager.LoadJobSchedulerConfigs(ctx); err != nil {
 		logger.Fatal("Fail to load job scheduler configs", zap.Error(err))
 	}
+
+	// Connect to event service client
+	eventConn, err := grpc.NewClient(cfg.EventServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		logger.Fatal("Failed to connect to event service", zap.Error(err))
+	}
+	defer eventConn.Close()
+
+	eventClient := eventv1.NewEventServiceClient(eventConn)
+
+	// Connect to booking service client
+	bookingConn, err := grpc.NewClient(cfg.BookingServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		logger.Fatal("Failed to connect to booking service", zap.Error(err))
+	}
+	defer bookingConn.Close()
+
+	bookingClient := bookingv1.NewBookingServiceClient(bookingConn)
+
 	// Register job
-	reservationCleanerJob := cronjob.NewReservationCleanerJob()
+	reservationCleanerJob := cronjob.NewReservationCleanerJob(eventClient, bookingClient, redisClient, logger)
 	if err := cronManager.RegisterJob(ctx, reservationCleanerJob); err != nil {
 		logger.Fatal("Fail to register reservation cleaner job", zap.Error(err))
 	}
