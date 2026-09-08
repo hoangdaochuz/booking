@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS scheduler_configs(
     is_enable BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-)
+);
 
 CREATE TYPE outbound_status AS ENUM('pending', 'published');
 
@@ -19,6 +19,6 @@ CREATE TABLE IF NOT EXISTS outbound_events(
     event_type VARCHAR(100) NOT NULL,
     status outbound_status,
     published_at TIMESTAMPTZ,
-    payload JSONB
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    payload JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 )

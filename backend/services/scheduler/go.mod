@@ -1,6 +1,6 @@
 module github.com/ticketbox/scheduler
 
-go 1.26.4
+go 1.25.5
 
 replace github.com/ticketbox/pkg => ../../pkg
 
