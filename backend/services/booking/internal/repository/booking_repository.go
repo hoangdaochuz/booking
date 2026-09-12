@@ -15,4 +15,5 @@ type BookingRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Booking, error)
 	ListByUserID(ctx context.Context, userID uuid.UUID, page, pageSize int) ([]*domain.Booking, int, error)
 	UpdateStatus(ctx context.Context, id uuid.UUID, status domain.BookingStatus) error
+	BatchUpdateStatus(ctx context.Context, ids []uuid.UUID, status domain.BookingStatus) error
 }

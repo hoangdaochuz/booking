@@ -1,4 +1,4 @@
-import { ApiAuthResponse, ApiEvent, ApiListEventsResponse, ApiBooking, ApiListBookingsResponse, ApiUser, ApiSeat, ApiGetSeatsParams, ApiUpdateSeatStatusParams } from "./types";
+import { ApiAuthResponse, ApiEvent, ApiListEventsResponse, ApiBooking, ApiListBookingsResponse, ApiUser, ApiSeat, ApiGetSeatsParams, ApiUpdateSeatStatusParams, ApiListSchedulersResponse, ApiUpdateSchedulerJobParams } from "./types";
 
 class ApiClient {
   private baseUrl: string;
@@ -177,6 +177,22 @@ class ApiClient {
     return this.request<ApiSeat>("/seats/status", {
       method: "PATCH",
       body: JSON.stringify(body),
+    });
+  }
+
+  // ── Scheduler (admin) ─────────────────────────────────
+  async listSchedulerJobs(): Promise<ApiListSchedulersResponse> {
+    return this.request<ApiListSchedulersResponse>("/scheduler/jobs");
+  }
+
+  async updateSchedulerJob(params: ApiUpdateSchedulerJobParams): Promise<void> {
+    await this.request<{ message: string }>(`/scheduler/jobs/${params.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        is_enable: params.is_enable,
+        cron_expression: params.cron_expression,
+        timeout: params.timeout,
+      }),
     });
   }
 

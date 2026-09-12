@@ -14,8 +14,13 @@ service BookingService {
     rpc ListUserBookings(ListUserBookingsRequest) returns (ListUserBookingsResponse);
     rpc CancelBooking(CancelBookingRequest) returns (BookingDetail);
     rpc UpdateBookingStatusById(UpdateBookingStatusByIdReq) returns (google.protobuf.Empty);
+    rpc UpdateBookingStatusByIds(UpdateBookingStatusByIdsReq) returns (google.protobuf.Empty);  
 }
 
+message UpdateBookingStatusByIdsReq{
+    repeated string booking_ids = 1;
+    string status = 2;
+}
 message CreateBookingRequest {
     string user_id = 1;
     string event_id = 2;

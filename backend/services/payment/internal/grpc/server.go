@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/ticketbox/payment/internal/domain"
@@ -208,4 +209,34 @@ func (p *PaymentServer) MakeRefundPayment(ctx context.Context, req *paymentv1.Ma
 		return nil, err
 	}
 	return nil, nil
+}
+
+func (p *PaymentServer) GetPaymentsByBookingIds(ctx context.Context, req *paymentv1.GetPaymentsByBookingIdsReq) (*paymentv1.PaymentList, error) {
+	if len(req.BookingIds) == 0 {
+		p.logger.Error("[PaymentServer][GetPaymentsByBookingIds] Booking ids are required")
+		return nil, fmt.Errorf("booking ids are required")
+	}
+
+	bookingUUIDs := make([]uuid.UUID, 0, len(req.BookingIds))
+	for _, bookingId := range req.BookingIds {
+		bookingUUID, err := uuid.Parse(bookingId)
+		if err != nil {
+			return nil, fmt.Errorf("[PaymentServer][GetPaymentsByBookingIds] exist booking id is invalid: %w", err)
+		}
+		bookingUUIDs = append(bookingUUIDs, bookingUUID)
+	}
+
+	res, err := p.service.GetPaymentsByBookingIds(ctx, bookingUUIDs)
+	if err != nil {
+		return nil, fmt.Errorf("[PaymentServer][GetPaymentsByBookingIds] get payments by bookingIds fails: %w", err)
+	}
+
+	paymentEntries := make([]*paymentv1.PaymentEntry, 0, len(res))
+	for _, payment := range res {
+		paymentEntry := toPaymentEntry(&payment)
+		paymentEntries = append(paymentEntries, &paymentEntry)
+	}
+	return &paymentv1.PaymentList{
+		Payments: paymentEntries,
+	}, nil
 }

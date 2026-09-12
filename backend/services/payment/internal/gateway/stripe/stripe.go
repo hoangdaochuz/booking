@@ -15,6 +15,7 @@ import (
 	"github.com/ticketbox/payment/internal/domain"
 	"github.com/ticketbox/payment/internal/kafka"
 	pkgkafka "github.com/ticketbox/pkg/kafka"
+	"github.com/ticketbox/pkg/topics"
 	pkgtyped "github.com/ticketbox/pkg/typed"
 	"github.com/ticketbox/pkg/utils"
 	"go.uber.org/zap"
@@ -118,11 +119,11 @@ func (s *StripePaymentGateway) HandleWebhookAfterPayment(ctx context.Context, re
 			return nil, err
 		}
 		kafkaEvent := pkgkafka.Event{
-			Type:      "PaymentSucceed",
+			Type:      topics.TypePaymentSucceed,
 			Timestamp: time.Now(),
 			Data:      payloadData,
 		}
-		err = s.paymentProducer.PublishEvent(ctx, "payment.events", msgKey, kafkaEvent)
+		err = s.paymentProducer.PublishEvent(ctx, topics.TopicPaymentEvents, msgKey, kafkaEvent)
 		if err != nil {
 			return nil, fmt.Errorf("Fail to publish event PaymentSucceed to topic payment.events")
 		}
@@ -146,11 +147,11 @@ func (s *StripePaymentGateway) HandleWebhookAfterPayment(ctx context.Context, re
 			return nil, err
 		}
 		kafkaEvent := pkgkafka.Event{
-			Type:      "PaymentFail",
+			Type:      topics.TypePaymentFail,
 			Timestamp: time.Now(),
 			Data:      payloadData,
 		}
-		err = s.paymentProducer.PublishEvent(ctx, "payment.events", msgKey, kafkaEvent)
+		err = s.paymentProducer.PublishEvent(ctx, topics.TopicPaymentEvents, msgKey, kafkaEvent)
 		if err != nil {
 			return nil, fmt.Errorf("Fail to publish event PaymentFail to topic payment.events")
 		}

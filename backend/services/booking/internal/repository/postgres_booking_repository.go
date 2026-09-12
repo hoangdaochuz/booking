@@ -155,3 +155,8 @@ func (r *PostgresBookingRepository) UpdateStatus(ctx context.Context, id uuid.UU
 	_, err := r.pool.Exec(ctx, "UPDATE bookings SET status = $2 WHERE id = $1", id, string(status))
 	return err
 }
+
+func (r *PostgresBookingRepository) BatchUpdateStatus(ctx context.Context, ids []uuid.UUID, status domain.BookingStatus) error {
+	_, err := r.pool.Exec(ctx, "UPDATE bookings SET status = $2 WHERE id = ANY($1)", ids, status)
+	return err
+}

@@ -195,3 +195,37 @@ func (s *BookingServer) UpdateBookingStatusById(ctx context.Context, req *bookin
 	err = s.service.UpdateBookingStatusById(ctx, bookingId, domain.BookingStatus(req.Status))
 	return nil, err
 }
+
+func (s *BookingServer) UpdateBookingStatusByIds(ctx context.Context, req *bookingv1.UpdateBookingStatusByIdsReq) (*emptypb.Empty, error) {
+	bookingStatus := domain.BookingStatus(req.Status)
+	allowBookingStatus := map[domain.BookingStatus]bool{
+		domain.StatusCancelled: true,
+		domain.StatusConfirmed: true,
+		domain.StatusExpired:   true,
+		domain.StatusFailed:    true,
+		domain.StatusPending:   true,
+	}
+
+	isAllow, ok := allowBookingStatus[bookingStatus]
+
+	if !ok || !isAllow {
+		return nil, fmt.Errorf("The booking status is invalid")
+	}
+
+	if len(req.BookingIds) == 0 {
+		s.logger.Info("[BookingServer][UpdateBookingStatusByIds] Booking ids are empty, return")
+		return nil, nil
+	}
+
+	bookingUUIDs := make([]uuid.UUID, 0, len(req.BookingIds))
+	for _, bookingId := range req.BookingIds {
+		bookingUUID, err := uuid.Parse(bookingId)
+		if err != nil {
+			s.logger.Error("[BookingServer] [UpdateBookingStatusByIds] The bookingId is not valid", zap.Error(err))
+			return nil, err
+		}
+		bookingUUIDs = append(bookingUUIDs, bookingUUID)
+	}
+	err := s.service.UpdateBookingStatusByIds(ctx, bookingUUIDs, bookingStatus)
+	return nil, err
+}

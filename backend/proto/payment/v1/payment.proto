@@ -16,6 +16,11 @@ service PaymentService {
     rpc UpdatePaymentStatusByPaymentIntentId(UpdatePaymentStatusByPaymentIntentIdReq) returns (google.protobuf.Empty);
     rpc GetPaymentByPaymentIntentId(GetPaymentByIntentIdReq) returns (PaymentEntry);
     rpc MakeRefundPayment(MakeRefundPaymentReq) returns (google.protobuf.Empty);
+    rpc GetPaymentsByBookingIds(GetPaymentsByBookingIdsReq) returns (PaymentList);
+}
+
+message GetPaymentsByBookingIdsReq {
+  repeated string booking_ids = 1;
 }
 
 message GetPaymentByIntentIdReq {

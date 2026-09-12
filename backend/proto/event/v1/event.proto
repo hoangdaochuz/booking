@@ -21,6 +21,37 @@ service EventService {
     rpc UpdateSeatStatus(UpdateSeatStatusRequest) returns (UpdateSeatStatusResponse);
     rpc UpdateBatchSeatStatus(UpdateBatchSeatStatusRequest) returns (google.protobuf.Empty);
     rpc GetSeatsBySeatIds(GetSeatsBySeatIdsRequest)returns (GetSeatsResponse);
+    rpc ReservedOrCompensateBatchSeats(ReservedOrCompensateBatchSeatsReq) returns (ReservedOrCompensateBatchSeatsRes);
+    rpc UndoReservedExpiredSeats(UndoReservedExpiredSeatsReq) returns (UndoReservedExpiredSeatsRes);
+    rpc GetReservedExpiredSeats(GetReservedExpiredSeatsReq) returns (GetReservedExpiredSeatsRes);
+}
+
+message UndoReservedExpiredSeatsRes{
+    map<string, SeatIds> booking_seat_ids_map = 1;
+}
+
+message GetReservedExpiredSeatsRes{
+    map<string, SeatIds> booking_seat_ids_map = 1;
+}
+
+message SeatIds{
+    repeated string seat_ids = 1; 
+}
+
+message GetReservedExpiredSeatsReq {}
+
+message UndoReservedExpiredSeatsReq {}
+
+message ReservedOrCompensateBatchSeatsReq {
+    repeated string seat_ids = 1;
+    string action = 2;
+    int32 reservation_time_in_minutes = 3;
+    string reserved_by_booking_id = 4;
+}
+
+
+message ReservedOrCompensateBatchSeatsRes {
+    bool success = 1;
 }
 
 message CreateEventRequest {

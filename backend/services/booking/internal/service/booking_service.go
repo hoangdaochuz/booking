@@ -234,3 +234,7 @@ func (s *BookingService) ListUserBookings(ctx context.Context, userID uuid.UUID,
 func (s *BookingService) UpdateBookingStatusById(ctx context.Context, bookingId uuid.UUID, status domain.BookingStatus) error {
 	return s.bookingRepo.UpdateStatus(ctx, bookingId, status)
 }
+
+func (s *BookingService) UpdateBookingStatusByIds(ctx context.Context, bookingIds []uuid.UUID, status domain.BookingStatus) error {
+	return s.bookingRepo.BatchUpdateStatus(ctx, bookingIds, status)
+}

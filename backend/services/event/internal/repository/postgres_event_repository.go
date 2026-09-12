@@ -695,3 +695,124 @@ func (r *PostgresSeatRepository) GetSeatsBySeatIds(ctx context.Context, seatIds 
 	}
 	return seats, nil
 }
+
+func (r *PostgresSeatRepository) ReservedOrCompensateBatchSeats(ctx context.Context, req *ReservedOrCompensateBatchSeats) (bool, error) {
+	var err error
+	if req.Action == domain.RESERVED_SEAT {
+		query := `UPDATE seats 
+				SET status = $2, reservation_expired_at = NOW() + ($3 * INTERVAL '1 minute'), reserved_by_booking_id = $4
+				WHERE id = ANY($1)`
+		_, err = r.pool.Exec(ctx, query, req.SeatIds, "reserved", req.ReservedTimeInMinutes, req.ReservedByBookingId)
+
+	} else {
+		query := `UPDATE seats 
+			SET status = $2, reservation_expired_at = NULL, reserved_by_booking_id = NULL
+			WHERE id = ANY($1)`
+		_, err = r.pool.Exec(ctx, query, req.SeatIds, "available")
+	}
+
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// UndoReservedExpiredSeats releases all seats whose reservation has expired:
+// status goes back to 'available' and every reservation marker is cleared,
+// as if no user had ever held the seat. It returns the released seat IDs
+// grouped by the booking that had reserved them, so the caller can mark
+// those bookings EXPIRED.
+//
+// The CTE locks the expired rows with SKIP LOCKED so concurrent runs of the
+// cleaner never block or fight over the same seats — a second run simply
+// skips rows already locked by the first.
+func (r *PostgresSeatRepository) UndoReservedExpiredSeats(ctx context.Context) (*ReservedExpiredSeatsResult, error) {
+	query := `
+		WITH expired AS (
+			SELECT id, reserved_by_booking_id
+			FROM seats
+			WHERE status = 'reserved'
+			  AND deleted_at IS NULL
+			  AND reservation_expired_at IS NOT NULL
+			  AND reservation_expired_at <= NOW()
+			FOR UPDATE SKIP LOCKED
+		)
+		UPDATE seats s
+		SET status = 'available',
+		    booking_id = NULL,
+		    reserved_by_booking_id = NULL,
+		    reservation_expired_at = NULL,
+		    updated_at = NOW()
+		FROM expired
+		WHERE s.id = expired.id AND s.status = 'reserved'
+		RETURNING expired.id, expired.reserved_by_booking_id`
+
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("undo reserved expired seats: %w", err)
+	}
+	defer rows.Close()
+
+	result := &ReservedExpiredSeatsResult{
+		BookingIdSeatIdsMap: make(map[uuid.UUID][]uuid.UUID),
+	}
+	for rows.Next() {
+		var seatID uuid.UUID
+		var bookingID *uuid.UUID
+		if err := rows.Scan(&seatID, &bookingID); err != nil {
+			return nil, fmt.Errorf("[UndoReservedExpiredSeats]: scan seat: %w", err)
+		}
+		// Seats reserved before reserved_by_booking_id existed have no owner;
+		// they are still released, but there is no booking to report back.
+		if bookingID == nil {
+			continue
+		}
+		result.BookingIdSeatIdsMap[*bookingID] = append(result.BookingIdSeatIdsMap[*bookingID], seatID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("[UndoReservedExpiredSeats]: iterate seats: %w", err)
+	}
+
+	return result, nil
+}
+
+func (r *PostgresSeatRepository) GetReservedExpiredSeats(ctx context.Context) (*ReservedExpiredSeatsResult, error) {
+	// Read-only snapshot: RETURNING is not valid on SELECT, and row locks
+	// taken here would be released at statement end anyway (no surrounding
+	// tx), so locking is left to the status updates that act on these seats.
+	query := `
+		SELECT id, reserved_by_booking_id
+		FROM seats
+		WHERE status = 'reserved'
+		AND deleted_at IS NULL
+		AND reservation_expired_at IS NOT NULL
+		AND reservation_expired_at <= NOW()`
+
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("get reserved expired seats: %w", err)
+	}
+	defer rows.Close()
+
+	result := &ReservedExpiredSeatsResult{
+		BookingIdSeatIdsMap: make(map[uuid.UUID][]uuid.UUID),
+	}
+	for rows.Next() {
+		var seatID uuid.UUID
+		var bookingID *uuid.UUID
+		if err := rows.Scan(&seatID, &bookingID); err != nil {
+			return nil, fmt.Errorf("[GetReservedExpiredSeats]: scan seat: %w", err)
+		}
+		// Seats reserved before reserved_by_booking_id existed have no owner;
+		// they are still released, but there is no booking to report back.
+		if bookingID == nil {
+			continue
+		}
+		result.BookingIdSeatIdsMap[*bookingID] = append(result.BookingIdSeatIdsMap[*bookingID], seatID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("[GetReservedExpiredSeats]: iterate seats: %w", err)
+	}
+
+	return result, nil
+}

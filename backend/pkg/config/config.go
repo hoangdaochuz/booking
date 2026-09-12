@@ -21,11 +21,12 @@ type Config struct {
 
 	BookingMode string `mapstructure:"BOOKING_MODE"`
 
-	UserServiceAddr    string `mapstructure:"USER_SERVICE_ADDR"`
-	EventServiceAddr   string `mapstructure:"EVENT_SERVICE_ADDR"`
-	BookingServiceAddr string `mapstructure:"BOOKING_SERVICE_ADDR"`
-	PaymentServiceAddr string `mapstructure:"PAYMENT_SERVICE_ADDR"`
-	SagaServiceAddr    string `mapstructure:"SAGA_SERVICE_ADDR"`
+	UserServiceAddr      string `mapstructure:"USER_SERVICE_ADDR"`
+	EventServiceAddr     string `mapstructure:"EVENT_SERVICE_ADDR"`
+	BookingServiceAddr   string `mapstructure:"BOOKING_SERVICE_ADDR"`
+	PaymentServiceAddr   string `mapstructure:"PAYMENT_SERVICE_ADDR"`
+	SagaServiceAddr      string `mapstructure:"SAGA_SERVICE_ADDR"`
+	SchedulerServiceAddr string `mapstructure:"SCHEDULER_SERVICE_ADDR"`
 
 	StripePublishableKey string `mapstructure:"STRIPE_PUBLISHABLE_KEY"`
 	StripeSecretKey      string `mapstructure:"STRIPE_SECRET_KEY"`
@@ -65,6 +66,7 @@ func Load() (*Config, error) {
 	cfg.StripeSecretKey = viper.GetString("STRIPE_SECRET_KEY")
 	cfg.StripeSecretWebhook = viper.GetString("STRIPE_SECRET_WEBHOOK")
 	cfg.SagaServiceAddr = viper.GetString("SAGA_SERVICE_ADDR")
+	cfg.SchedulerServiceAddr = viper.GetString("SCHEDULER_SERVICE_ADDR")
 
 	return cfg, nil
 }

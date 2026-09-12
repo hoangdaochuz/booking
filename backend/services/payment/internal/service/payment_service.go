@@ -98,3 +98,7 @@ func (p *PaymentService) GetPaymentByPaymentIntentId(ctx context.Context, paymen
 func (p *PaymentService) MakePaymentRefund(ctx context.Context, req *domain.MakePaymentRefundRequest) error {
 	return p.gateway.MakePaymentRefund(ctx, req)
 }
+
+func (p *PaymentService) GetPaymentsByBookingIds(ctx context.Context, bookingIds []uuid.UUID) ([]domain.Payment, error) {
+	return p.repo.GetPaymentsByBookingIds(ctx, bookingIds)
+}

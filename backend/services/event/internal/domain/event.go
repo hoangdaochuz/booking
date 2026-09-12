@@ -41,15 +41,17 @@ const (
 )
 
 type Seat struct {
-	ID           uuid.UUID
-	EventID      uuid.UUID
-	TicketTierID uuid.UUID
-	Status       SeatStatus
-	BookingID    *uuid.UUID
-	OrderID      *uuid.UUID
-	Position     Position
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID                   uuid.UUID
+	EventID              uuid.UUID
+	TicketTierID         uuid.UUID
+	Status               SeatStatus
+	BookingID            *uuid.UUID
+	OrderID              *uuid.UUID
+	Position             Position
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+	ReservationExpiredAt *time.Time
+	ReservedByBookingID  *uuid.UUID
 }
 
 type Position struct {
@@ -59,3 +61,8 @@ type Position struct {
 	X         int    `json:"x"`
 	Y         int    `json:"y"`
 }
+
+type ReserveSeatAction string
+
+const RESERVED_SEAT ReserveSeatAction = "reserved"
+const COMPENSATE_SEAT ReserveSeatAction = "compensate"

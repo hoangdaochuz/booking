@@ -20,18 +20,21 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	EventService_CreateEvent_FullMethodName                   = "/event.v1.EventService/CreateEvent"
-	EventService_GetEvent_FullMethodName                      = "/event.v1.EventService/GetEvent"
-	EventService_ListEvents_FullMethodName                    = "/event.v1.EventService/ListEvents"
-	EventService_UpdateEvent_FullMethodName                   = "/event.v1.EventService/UpdateEvent"
-	EventService_DeleteEvent_FullMethodName                   = "/event.v1.EventService/DeleteEvent"
-	EventService_GetTicketAvailability_FullMethodName         = "/event.v1.EventService/GetTicketAvailability"
-	EventService_UpdateTicketAvailability_FullMethodName      = "/event.v1.EventService/UpdateTicketAvailability"
-	EventService_UpdateBatchTicketAvailability_FullMethodName = "/event.v1.EventService/UpdateBatchTicketAvailability"
-	EventService_GetSeatsOfEventByTierId_FullMethodName       = "/event.v1.EventService/GetSeatsOfEventByTierId"
-	EventService_UpdateSeatStatus_FullMethodName              = "/event.v1.EventService/UpdateSeatStatus"
-	EventService_UpdateBatchSeatStatus_FullMethodName         = "/event.v1.EventService/UpdateBatchSeatStatus"
-	EventService_GetSeatsBySeatIds_FullMethodName             = "/event.v1.EventService/GetSeatsBySeatIds"
+	EventService_CreateEvent_FullMethodName                    = "/event.v1.EventService/CreateEvent"
+	EventService_GetEvent_FullMethodName                       = "/event.v1.EventService/GetEvent"
+	EventService_ListEvents_FullMethodName                     = "/event.v1.EventService/ListEvents"
+	EventService_UpdateEvent_FullMethodName                    = "/event.v1.EventService/UpdateEvent"
+	EventService_DeleteEvent_FullMethodName                    = "/event.v1.EventService/DeleteEvent"
+	EventService_GetTicketAvailability_FullMethodName          = "/event.v1.EventService/GetTicketAvailability"
+	EventService_UpdateTicketAvailability_FullMethodName       = "/event.v1.EventService/UpdateTicketAvailability"
+	EventService_UpdateBatchTicketAvailability_FullMethodName  = "/event.v1.EventService/UpdateBatchTicketAvailability"
+	EventService_GetSeatsOfEventByTierId_FullMethodName        = "/event.v1.EventService/GetSeatsOfEventByTierId"
+	EventService_UpdateSeatStatus_FullMethodName               = "/event.v1.EventService/UpdateSeatStatus"
+	EventService_UpdateBatchSeatStatus_FullMethodName          = "/event.v1.EventService/UpdateBatchSeatStatus"
+	EventService_GetSeatsBySeatIds_FullMethodName              = "/event.v1.EventService/GetSeatsBySeatIds"
+	EventService_ReservedOrCompensateBatchSeats_FullMethodName = "/event.v1.EventService/ReservedOrCompensateBatchSeats"
+	EventService_UndoReservedExpiredSeats_FullMethodName       = "/event.v1.EventService/UndoReservedExpiredSeats"
+	EventService_GetReservedExpiredSeats_FullMethodName        = "/event.v1.EventService/GetReservedExpiredSeats"
 )
 
 // EventServiceClient is the client API for EventService service.
@@ -50,6 +53,9 @@ type EventServiceClient interface {
 	UpdateSeatStatus(ctx context.Context, in *UpdateSeatStatusRequest, opts ...grpc.CallOption) (*UpdateSeatStatusResponse, error)
 	UpdateBatchSeatStatus(ctx context.Context, in *UpdateBatchSeatStatusRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	GetSeatsBySeatIds(ctx context.Context, in *GetSeatsBySeatIdsRequest, opts ...grpc.CallOption) (*GetSeatsResponse, error)
+	ReservedOrCompensateBatchSeats(ctx context.Context, in *ReservedOrCompensateBatchSeatsReq, opts ...grpc.CallOption) (*ReservedOrCompensateBatchSeatsRes, error)
+	UndoReservedExpiredSeats(ctx context.Context, in *UndoReservedExpiredSeatsReq, opts ...grpc.CallOption) (*UndoReservedExpiredSeatsRes, error)
+	GetReservedExpiredSeats(ctx context.Context, in *GetReservedExpiredSeatsReq, opts ...grpc.CallOption) (*GetReservedExpiredSeatsRes, error)
 }
 
 type eventServiceClient struct {
@@ -180,6 +186,36 @@ func (c *eventServiceClient) GetSeatsBySeatIds(ctx context.Context, in *GetSeats
 	return out, nil
 }
 
+func (c *eventServiceClient) ReservedOrCompensateBatchSeats(ctx context.Context, in *ReservedOrCompensateBatchSeatsReq, opts ...grpc.CallOption) (*ReservedOrCompensateBatchSeatsRes, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReservedOrCompensateBatchSeatsRes)
+	err := c.cc.Invoke(ctx, EventService_ReservedOrCompensateBatchSeats_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *eventServiceClient) UndoReservedExpiredSeats(ctx context.Context, in *UndoReservedExpiredSeatsReq, opts ...grpc.CallOption) (*UndoReservedExpiredSeatsRes, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UndoReservedExpiredSeatsRes)
+	err := c.cc.Invoke(ctx, EventService_UndoReservedExpiredSeats_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *eventServiceClient) GetReservedExpiredSeats(ctx context.Context, in *GetReservedExpiredSeatsReq, opts ...grpc.CallOption) (*GetReservedExpiredSeatsRes, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetReservedExpiredSeatsRes)
+	err := c.cc.Invoke(ctx, EventService_GetReservedExpiredSeats_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // EventServiceServer is the server API for EventService service.
 // All implementations must embed UnimplementedEventServiceServer
 // for forward compatibility.
@@ -196,6 +232,9 @@ type EventServiceServer interface {
 	UpdateSeatStatus(context.Context, *UpdateSeatStatusRequest) (*UpdateSeatStatusResponse, error)
 	UpdateBatchSeatStatus(context.Context, *UpdateBatchSeatStatusRequest) (*emptypb.Empty, error)
 	GetSeatsBySeatIds(context.Context, *GetSeatsBySeatIdsRequest) (*GetSeatsResponse, error)
+	ReservedOrCompensateBatchSeats(context.Context, *ReservedOrCompensateBatchSeatsReq) (*ReservedOrCompensateBatchSeatsRes, error)
+	UndoReservedExpiredSeats(context.Context, *UndoReservedExpiredSeatsReq) (*UndoReservedExpiredSeatsRes, error)
+	GetReservedExpiredSeats(context.Context, *GetReservedExpiredSeatsReq) (*GetReservedExpiredSeatsRes, error)
 	mustEmbedUnimplementedEventServiceServer()
 }
 
@@ -241,6 +280,15 @@ func (UnimplementedEventServiceServer) UpdateBatchSeatStatus(context.Context, *U
 }
 func (UnimplementedEventServiceServer) GetSeatsBySeatIds(context.Context, *GetSeatsBySeatIdsRequest) (*GetSeatsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetSeatsBySeatIds not implemented")
+}
+func (UnimplementedEventServiceServer) ReservedOrCompensateBatchSeats(context.Context, *ReservedOrCompensateBatchSeatsReq) (*ReservedOrCompensateBatchSeatsRes, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReservedOrCompensateBatchSeats not implemented")
+}
+func (UnimplementedEventServiceServer) UndoReservedExpiredSeats(context.Context, *UndoReservedExpiredSeatsReq) (*UndoReservedExpiredSeatsRes, error) {
+	return nil, status.Error(codes.Unimplemented, "method UndoReservedExpiredSeats not implemented")
+}
+func (UnimplementedEventServiceServer) GetReservedExpiredSeats(context.Context, *GetReservedExpiredSeatsReq) (*GetReservedExpiredSeatsRes, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetReservedExpiredSeats not implemented")
 }
 func (UnimplementedEventServiceServer) mustEmbedUnimplementedEventServiceServer() {}
 func (UnimplementedEventServiceServer) testEmbeddedByValue()                      {}
@@ -479,6 +527,60 @@ func _EventService_GetSeatsBySeatIds_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _EventService_ReservedOrCompensateBatchSeats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReservedOrCompensateBatchSeatsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).ReservedOrCompensateBatchSeats(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_ReservedOrCompensateBatchSeats_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).ReservedOrCompensateBatchSeats(ctx, req.(*ReservedOrCompensateBatchSeatsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EventService_UndoReservedExpiredSeats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UndoReservedExpiredSeatsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).UndoReservedExpiredSeats(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_UndoReservedExpiredSeats_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).UndoReservedExpiredSeats(ctx, req.(*UndoReservedExpiredSeatsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EventService_GetReservedExpiredSeats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetReservedExpiredSeatsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).GetReservedExpiredSeats(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_GetReservedExpiredSeats_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).GetReservedExpiredSeats(ctx, req.(*GetReservedExpiredSeatsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // EventService_ServiceDesc is the grpc.ServiceDesc for EventService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -533,6 +635,18 @@ var EventService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetSeatsBySeatIds",
 			Handler:    _EventService_GetSeatsBySeatIds_Handler,
+		},
+		{
+			MethodName: "ReservedOrCompensateBatchSeats",
+			Handler:    _EventService_ReservedOrCompensateBatchSeats_Handler,
+		},
+		{
+			MethodName: "UndoReservedExpiredSeats",
+			Handler:    _EventService_UndoReservedExpiredSeats_Handler,
+		},
+		{
+			MethodName: "GetReservedExpiredSeats",
+			Handler:    _EventService_GetReservedExpiredSeats_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

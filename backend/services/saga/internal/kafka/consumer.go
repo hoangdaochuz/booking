@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	pkgkafka "github.com/ticketbox/pkg/kafka"
+	"github.com/ticketbox/pkg/topics"
 	"github.com/ticketbox/saga/internal/service"
 	"go.uber.org/zap"
 )
@@ -22,7 +23,7 @@ func NewSagaOrchestratorConsumer(brokers []string, service *service.SagaService,
 	}
 	sagaOrchestratorConsumer.sagaOrchesConsumer = pkgkafka.NewConsumer(
 		brokers,
-		"payment.events",
+		topics.TopicPaymentEvents,
 		"saga-payment-group",
 		sagaOrchestratorConsumer.ConsumerHandler,
 		logger)
@@ -39,9 +40,9 @@ func (s *SagaOrchestratorConsumer) Start(ctx context.Context) error {
 
 func (s *SagaOrchestratorConsumer) ConsumerHandler(ctx context.Context, event pkgkafka.Event) error {
 	switch event.Type {
-	case "PaymentSucceed":
+	case topics.TypePaymentSucceed:
 		return s.service.HandleSagaAferPaymentSuccess(ctx, event.Data)
-	case "PaymentFail":
+	case topics.TypePaymentFail:
 		return s.service.HandleSagaAfterPaymentFailure(ctx, event.Data)
 	default:
 		return fmt.Errorf("Event type %s cannot be handled", event.Type)

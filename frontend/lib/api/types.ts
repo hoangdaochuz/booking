@@ -105,3 +105,26 @@ export interface ApiUpdateSeatStatusParams {
   status: 'available' | 'reserved' | 'booked';
   booking_id?: string;
 }
+
+// ── Scheduler ────────────────────────────────────────────
+export interface ApiSchedulerJob {
+  id: string;
+  name: string;
+  cron_expression: string;
+  is_enabled: boolean;
+  version: number;
+  timeout: number; // seconds
+  created_at: string; // RFC3339
+  updated_at: string; // RFC3339
+}
+
+export interface ApiListSchedulersResponse {
+  schedulers: ApiSchedulerJob[];
+}
+
+export interface ApiUpdateSchedulerJobParams {
+  id: string;
+  is_enable: boolean;
+  cron_expression: string;
+  timeout: number; // seconds (1–600)
+}

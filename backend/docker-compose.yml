@@ -106,6 +106,23 @@ services:
       retries: 5
     networks:
       - ticketbox-net
+  postgres-scheduler:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ticketbox_scheduler
+      POSTGRES_USER: ticketbox
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ticketbox_secret}
+    ports:
+      - "5439:5432"
+    volumes:
+      - pgdata-scheduler:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ticketbox -d ticketbox_scheduler"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ticketbox-net
 
   # ─── Redis ───
   redis:
@@ -289,6 +306,31 @@ services:
         condition: service_started
     networks:
       - ticketbox-net
+  
+  scheduler-service:
+    build:
+      context: .
+      dockerfile: services/scheduler/Dockerfile
+    environment:
+      SERVICE_NAME: scheduler-service
+      GRPC_PORT: "50056"
+      DATABASE_URL: postgres://ticketbox:${POSTGRES_PASSWORD:-ticketbox_secret}@postgres-scheduler:5432/ticketbox_scheduler?sslmode=disable
+      KAFKA_BROKERS: kafka:29092
+      BOOKING_SERVICE_ADDR: booking-service:50053
+      EVENT_SERVICE_ADDR: event-service:50052
+      PAYMENT_SERVICE_ADDR: payment-service:50054
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres-scheduler:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      booking-service:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    networks:
+      - ticketbox-net
 
   notification-service:
     build:
@@ -319,12 +361,14 @@ services:
       EVENT_SERVICE_ADDR: event-service:50052
       BOOKING_SERVICE_ADDR: booking-service:50053
       PAYMENT_SERVICE_ADDR: payment-service:50054
+      SCHEDULER_SERVICE_ADDR: scheduler-service:50056
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-your-jwt-secret-change-in-production}
     depends_on:
       - user-service
       - event-service
       - booking-service
+      - scheduler-service
       - redis
     networks:
       - ticketbox-net
@@ -336,6 +380,7 @@ volumes:
   pgdata-payment:
   pgdata-saga:
   pgdata-notification:
+  pgdata-scheduler:
   redis-data:
 
 networks:

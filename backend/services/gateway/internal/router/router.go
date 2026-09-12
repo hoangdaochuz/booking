@@ -7,6 +7,7 @@ import (
 	bookingv1 "github.com/ticketbox/pkg/proto/booking/v1"
 	eventv1 "github.com/ticketbox/pkg/proto/event/v1"
 	paymentv1 "github.com/ticketbox/pkg/proto/payment/v1"
+	schedulerv1 "github.com/ticketbox/pkg/proto/scheduler/v1"
 	userv1 "github.com/ticketbox/pkg/proto/user/v1"
 
 	"github.com/ticketbox/gateway/internal/handler"
@@ -18,6 +19,7 @@ func SetupRouter(
 	eventClient eventv1.EventServiceClient,
 	bookingClient bookingv1.BookingServiceClient,
 	paymentClient paymentv1.PaymentServiceClient,
+	schedulerClient schedulerv1.SchedulerServiceClient,
 	redisClient *redis.Client,
 ) *gin.Engine {
 	r := gin.New()
@@ -29,6 +31,7 @@ func SetupRouter(
 	bookingHandler := handler.NewBookingHandler(bookingClient)
 	userHandler := handler.NewUserHandler(userClient)
 	paymentHandler := handler.NewPaymentHandler(paymentClient)
+	schedulerHandler := handler.NewSchedulerHandler(schedulerClient)
 
 	api := r.Group("/api")
 	{
@@ -64,6 +67,9 @@ func SetupRouter(
 			admin.POST("/events", eventHandler.CreateEvent)
 			admin.PUT("/events/:id", eventHandler.UpdateEvent)
 			admin.DELETE("/events/:id", eventHandler.DeleteEvent)
+
+			admin.GET("/scheduler/jobs", schedulerHandler.ListSchedulerJobs)
+			admin.PATCH("/scheduler/jobs/:id", schedulerHandler.UpdateSchedulerJob)
 		}
 	}
 

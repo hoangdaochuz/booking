@@ -6,11 +6,10 @@ import (
 	"time"
 
 	pkgkafka "github.com/ticketbox/pkg/kafka"
+	"github.com/ticketbox/pkg/topics"
 	"github.com/ticketbox/booking/internal/domain"
 	"go.uber.org/zap"
 )
-
-const TopicBookingEvents = "booking.events"
 
 type BookingEventProducer struct {
 	producer *pkgkafka.Producer
@@ -18,7 +17,7 @@ type BookingEventProducer struct {
 }
 
 func NewBookingEventProducer(brokers []string, logger *zap.Logger) *BookingEventProducer {
-	producer := pkgkafka.NewProducer(brokers, []string{TopicBookingEvents}, logger)
+	producer := pkgkafka.NewProducer(brokers, []string{topics.TopicBookingEvents}, logger)
 	return &BookingEventProducer{producer: producer, logger: logger}
 }
 
@@ -35,11 +34,11 @@ func (p *BookingEventProducer) PublishBookingConfirmed(ctx context.Context, book
 	}
 
 	event := pkgkafka.Event{
-		Type:      "BookingConfirmed",
+		Type:      topics.TypeBookingConfirmed,
 		Timestamp: time.Now(),
 		Data:      data,
 	}
-	return p.producer.Publish(ctx, TopicBookingEvents, booking.ID.String(), event)
+	return p.producer.Publish(ctx, topics.TopicBookingEvents, booking.ID.String(), event)
 }
 
 func (p *BookingEventProducer) PublishBookingFailed(ctx context.Context, booking *domain.Booking, email string) error {
@@ -55,11 +54,11 @@ func (p *BookingEventProducer) PublishBookingFailed(ctx context.Context, booking
 	}
 
 	event := pkgkafka.Event{
-		Type:      "BookingFailed",
+		Type:      topics.TypeBookingFailed,
 		Timestamp: time.Now(),
 		Data:      data,
 	}
-	return p.producer.Publish(ctx, TopicBookingEvents, booking.ID.String(), event)
+	return p.producer.Publish(ctx, topics.TopicBookingEvents, booking.ID.String(), event)
 }
 
 func (p *BookingEventProducer) PublishBookingCancelled(ctx context.Context, booking *domain.Booking, email string) error {
@@ -74,11 +73,11 @@ func (p *BookingEventProducer) PublishBookingCancelled(ctx context.Context, book
 	}
 
 	event := pkgkafka.Event{
-		Type:      "BookingCancelled",
+		Type:      topics.TypeBookingCancelled,
 		Timestamp: time.Now(),
 		Data:      data,
 	}
-	return p.producer.Publish(ctx, TopicBookingEvents, booking.ID.String(), event)
+	return p.producer.Publish(ctx, topics.TopicBookingEvents, booking.ID.String(), event)
 }
 
 func (p *BookingEventProducer) Close() error {
