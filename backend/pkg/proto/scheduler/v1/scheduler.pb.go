@@ -28,6 +28,7 @@ type UpdateSchedulerByIdRequest struct {
 	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	IsEnable       bool                   `protobuf:"varint,2,opt,name=is_enable,json=isEnable,proto3" json:"is_enable,omitempty"`
 	CronExpression string                 `protobuf:"bytes,3,opt,name=cron_expression,json=cronExpression,proto3" json:"cron_expression,omitempty"`
+	Timeout        int32                  `protobuf:"varint,4,opt,name=timeout,proto3" json:"timeout,omitempty"` // seconds
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -81,6 +82,13 @@ func (x *UpdateSchedulerByIdRequest) GetCronExpression() string {
 		return x.CronExpression
 	}
 	return ""
+}
+
+func (x *UpdateSchedulerByIdRequest) GetTimeout() int32 {
+	if x != nil {
+		return x.Timeout
+	}
+	return 0
 }
 
 type ListActiveSchedulersRequest struct {
@@ -267,11 +275,12 @@ var File_proto_scheduler_v1_scheduler_proto protoreflect.FileDescriptor
 
 const file_proto_scheduler_v1_scheduler_proto_rawDesc = "" +
 	"\n" +
-	"\"proto/scheduler/v1/scheduler.proto\x12\fscheduler.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bgoogle/protobuf/empty.proto\"r\n" +
+	"\"proto/scheduler/v1/scheduler.proto\x12\fscheduler.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bgoogle/protobuf/empty.proto\"\x8c\x01\n" +
 	"\x1aUpdateSchedulerByIdRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tis_enable\x18\x02 \x01(\bR\bisEnable\x12'\n" +
-	"\x0fcron_expression\x18\x03 \x01(\tR\x0ecronExpression\"\x1d\n" +
+	"\x0fcron_expression\x18\x03 \x01(\tR\x0ecronExpression\x12\x18\n" +
+	"\atimeout\x18\x04 \x01(\x05R\atimeout\"\x1d\n" +
 	"\x1bListActiveSchedulersRequest\"[\n" +
 	"\x1cListActiveSchedulersResponse\x12;\n" +
 	"\n" +

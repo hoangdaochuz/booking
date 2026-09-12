@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -26,13 +27,20 @@ func (s *SchedulerConfigRepo) GetById(ctx context.Context, id uuid.UUID) (*domai
 	return nil, nil
 }
 
-func (s *SchedulerConfigRepo) UpdateById(ctx context.Context, id uuid.UUID, target domain.SchedulerConfig) error {
-	query := `UPDATE scheduler_configs SET is_enable = $2, interval_expression = $3, updated_at = now(), version = version + 1 WHERE id = $1`
-	_, err := s.pool.Exec(ctx, query, id, target.IsEnabled, target.IntervalExpression)
+func (s *SchedulerConfigRepo) UpdateById(ctx context.Context, id uuid.UUID, target domain.SchedulerConfig) (*domain.SchedulerConfig, error) {
+	query := `UPDATE scheduler_configs SET is_enable = $2, interval_expression = $3, timeout = $4, updated_at = now(), version = version + 1 WHERE id = $1 RETURNING id, name, timeout, version, interval_expression, is_enable, created_at, updated_at`
+	row := s.pool.QueryRow(ctx, query, id, target.IsEnabled, target.IntervalExpression, int32(target.Timeout/time.Second))
+	var cfg domain.SchedulerConfig
+	var timeout int32
+	err := row.Scan(&cfg.Id, &cfg.Name, &timeout, &cfg.Version, &cfg.IntervalExpression, &cfg.IsEnabled, &cfg.CreatedAt, &cfg.UpdatedAt)
 	if err != nil {
-		return err
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("scheduler config not found")
+		}
+		return nil, err
 	}
-	return nil
+	cfg.Timeout = time.Duration(timeout) * time.Second
+	return &cfg, nil
 }
 
 func (s *SchedulerConfigRepo) ListSchedulersConfig(ctx context.Context) ([]domain.SchedulerConfig, error) {
@@ -51,7 +59,9 @@ func (s *SchedulerConfigRepo) ListSchedulersConfig(ctx context.Context) ([]domai
 		if err != nil {
 			continue
 		}
-		cfg.Timeout = time.Duration(timeout * int32(time.Second))
+		// Convert before multiplying: timeout * int32(time.Second) overflows
+		// int32 for any timeout > 2s, wrapping the duration negative.
+		cfg.Timeout = time.Duration(timeout) * time.Second
 		schedulerCfgs = append(schedulerCfgs, cfg)
 	}
 	return schedulerCfgs, nil

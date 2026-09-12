@@ -15,6 +15,7 @@ import (
 	"github.com/ticketbox/pkg/outbound"
 	bookingv1 "github.com/ticketbox/pkg/proto/booking/v1"
 	eventv1 "github.com/ticketbox/pkg/proto/event/v1"
+	paymentv1 "github.com/ticketbox/pkg/proto/payment/v1"
 	schedulerv1 "github.com/ticketbox/pkg/proto/scheduler/v1"
 	redis_pkg "github.com/ticketbox/pkg/redis"
 	schedulergrpc "github.com/ticketbox/scheduler/internal/grpc"
@@ -135,8 +136,17 @@ func main() {
 
 	bookingClient := bookingv1.NewBookingServiceClient(bookingConn)
 
+	// Connect to payment service client
+	paymentConn, err := grpc.NewClient(cfg.PaymentServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		logger.Fatal("Failed to connect to payment service", zap.Error(err))
+	}
+	defer paymentConn.Close()
+
+	paymentClient := paymentv1.NewPaymentServiceClient(paymentConn)
+
 	// Register job
-	reservationCleanerJob := cronjob.NewReservationCleanerJob(eventClient, bookingClient, redisClient, logger)
+	reservationCleanerJob := cronjob.NewReservationCleanerJob(eventClient, bookingClient, paymentClient, redisClient, logger)
 	if err := cronManager.RegisterJob(ctx, reservationCleanerJob); err != nil {
 		logger.Fatal("Fail to register reservation cleaner job", zap.Error(err))
 	}

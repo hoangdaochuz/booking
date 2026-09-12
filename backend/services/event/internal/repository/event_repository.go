@@ -47,7 +47,7 @@ type ReservedOrCompensateBatchSeats struct {
 	ReservedTimeInMinutes int32
 }
 
-type UndoReservedExpiredSeatsResult struct {
+type ReservedExpiredSeatsResult struct {
 	BookingIdSeatIdsMap map[uuid.UUID][]uuid.UUID
 }
 
@@ -83,5 +83,7 @@ type SeatRepository interface {
 
 	ReservedOrCompensateBatchSeats(ctx context.Context, req *ReservedOrCompensateBatchSeats) (bool, error)
 
-	UndoReservedExpiredSeats(ctx context.Context) (*UndoReservedExpiredSeatsResult, error)
+	UndoReservedExpiredSeats(ctx context.Context) (*ReservedExpiredSeatsResult, error)
+
+	GetReservedExpiredSeats(ctx context.Context) (*ReservedExpiredSeatsResult, error)
 }

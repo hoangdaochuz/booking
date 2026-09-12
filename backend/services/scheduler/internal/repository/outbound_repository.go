@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -33,7 +32,7 @@ func (o *OutBoundEventRepo) Create(ctx context.Context, outboundEvent outbound.O
 }
 
 func (o *OutBoundEventRepo) GetListOutboundPending(ctx context.Context, limit, offset int) ([]outbound.OutboundEvent, error) {
-	query := `SELECT id, topic, event_type, status, published_at, payload, created_at FROM outbound_events
+	query := `SELECT id, topic, event_type, status, published_at, payload FROM outbound_events
 			WHERE status = $1 LIMIT $2 OFFSET $3`
 
 	rows, err := o.pool.Query(ctx, query, string(outbound.OutboundStatusPending), limit, offset)
@@ -43,12 +42,11 @@ func (o *OutBoundEventRepo) GetListOutboundPending(ctx context.Context, limit, o
 	outboundEvents := []outbound.OutboundEvent{}
 	var outboundEvent outbound.OutboundEvent
 	var status string
-	var createdAt time.Time
 	for rows.Next() {
-		err := rows.Scan(&outboundEvent.Id, &outboundEvent.Topic, &outboundEvent.EventType, &status, &outboundEvent.PublishAt, &outboundEvent.Payload, &createdAt)
+		err := rows.Scan(&outboundEvent.Id, &outboundEvent.Topic, &outboundEvent.EventType, &status, &outboundEvent.PublishAt, &outboundEvent.Payload)
 		if err != nil {
 			fmt.Println("Fail to scan outbound event: %w", err)
-			continue
+			return nil, err
 		}
 		outboundEvent.Status = outbound.OutboundStatus(status)
 		outboundEvents = append(outboundEvents, outboundEvent)

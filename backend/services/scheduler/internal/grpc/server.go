@@ -60,6 +60,7 @@ func (s *SchedulerServiceServer) UpdateSchedulerById(ctx context.Context, req *s
 	err = s.service.UpdateSchedulerConfigById(ctx, schedulerCfgId, domain.SchedulerConfig{
 		IsEnabled:          req.IsEnable,
 		IntervalExpression: req.CronExpression,
+		Timeout:            time.Duration(req.Timeout) * time.Second,
 	})
 	if err != nil {
 		return nil, err

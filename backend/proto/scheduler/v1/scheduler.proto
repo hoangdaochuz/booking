@@ -17,6 +17,7 @@ message UpdateSchedulerByIdRequest {
     string id = 1;
     bool is_enable = 2;
     string cron_expression = 3;
+    int32 timeout = 4; // seconds
 }
 
 

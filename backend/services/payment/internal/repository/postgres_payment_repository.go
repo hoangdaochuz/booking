@@ -173,3 +173,38 @@ func (p *PostgresPaymentRepository) DeletePayment(ctx context.Context, ID uuid.U
 	_, err := p.pool.Exec(ctx, "DELETE FROM payments WHERE id = $1", ID)
 	return err
 }
+
+func (p *PostgresPaymentRepository) GetPaymentsByBookingIds(ctx context.Context, bookingIds []uuid.UUID) ([]domain.Payment, error) {
+	query := `SELECT p.id, p.user_id, p.booking_id, p.order_id, p.status, p.price, p.currency, p.transaction_id, p.payment_intent_id, p.payment_method, p.created_at
+		FROM payments as p
+		WHERE p.booking_id = ANY($1);`
+
+	rows, err := p.pool.Query(ctx, query, bookingIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	if rows.Err() != nil {
+		return nil, err
+	}
+
+	payments := []domain.Payment{}
+	payment := domain.Payment{}
+	var orderId uuid.UUID
+	var status string
+	var transactionId uuid.UUID
+	var bookingId uuid.UUID
+	for rows.Next() {
+		err = rows.Scan(&payment.ID, &payment.UserId, &bookingId, &orderId, &status, &payment.Price, &payment.Currency, &transactionId, &payment.PaymentIntentId, &payment.PaymentMethod, &payment.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		payment.BookingId = &bookingId
+		payment.Transaction_id = &transactionId
+		payment.OrderId = &orderId
+		payment.Status = domain.PaymentStatus(status)
+		payments = append(payments, payment)
+	}
+	return payments, nil
+}

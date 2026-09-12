@@ -34,6 +34,7 @@ const (
 	EventService_GetSeatsBySeatIds_FullMethodName              = "/event.v1.EventService/GetSeatsBySeatIds"
 	EventService_ReservedOrCompensateBatchSeats_FullMethodName = "/event.v1.EventService/ReservedOrCompensateBatchSeats"
 	EventService_UndoReservedExpiredSeats_FullMethodName       = "/event.v1.EventService/UndoReservedExpiredSeats"
+	EventService_GetReservedExpiredSeats_FullMethodName        = "/event.v1.EventService/GetReservedExpiredSeats"
 )
 
 // EventServiceClient is the client API for EventService service.
@@ -54,6 +55,7 @@ type EventServiceClient interface {
 	GetSeatsBySeatIds(ctx context.Context, in *GetSeatsBySeatIdsRequest, opts ...grpc.CallOption) (*GetSeatsResponse, error)
 	ReservedOrCompensateBatchSeats(ctx context.Context, in *ReservedOrCompensateBatchSeatsReq, opts ...grpc.CallOption) (*ReservedOrCompensateBatchSeatsRes, error)
 	UndoReservedExpiredSeats(ctx context.Context, in *UndoReservedExpiredSeatsReq, opts ...grpc.CallOption) (*UndoReservedExpiredSeatsRes, error)
+	GetReservedExpiredSeats(ctx context.Context, in *GetReservedExpiredSeatsReq, opts ...grpc.CallOption) (*GetReservedExpiredSeatsRes, error)
 }
 
 type eventServiceClient struct {
@@ -204,6 +206,16 @@ func (c *eventServiceClient) UndoReservedExpiredSeats(ctx context.Context, in *U
 	return out, nil
 }
 
+func (c *eventServiceClient) GetReservedExpiredSeats(ctx context.Context, in *GetReservedExpiredSeatsReq, opts ...grpc.CallOption) (*GetReservedExpiredSeatsRes, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetReservedExpiredSeatsRes)
+	err := c.cc.Invoke(ctx, EventService_GetReservedExpiredSeats_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // EventServiceServer is the server API for EventService service.
 // All implementations must embed UnimplementedEventServiceServer
 // for forward compatibility.
@@ -222,6 +234,7 @@ type EventServiceServer interface {
 	GetSeatsBySeatIds(context.Context, *GetSeatsBySeatIdsRequest) (*GetSeatsResponse, error)
 	ReservedOrCompensateBatchSeats(context.Context, *ReservedOrCompensateBatchSeatsReq) (*ReservedOrCompensateBatchSeatsRes, error)
 	UndoReservedExpiredSeats(context.Context, *UndoReservedExpiredSeatsReq) (*UndoReservedExpiredSeatsRes, error)
+	GetReservedExpiredSeats(context.Context, *GetReservedExpiredSeatsReq) (*GetReservedExpiredSeatsRes, error)
 	mustEmbedUnimplementedEventServiceServer()
 }
 
@@ -273,6 +286,9 @@ func (UnimplementedEventServiceServer) ReservedOrCompensateBatchSeats(context.Co
 }
 func (UnimplementedEventServiceServer) UndoReservedExpiredSeats(context.Context, *UndoReservedExpiredSeatsReq) (*UndoReservedExpiredSeatsRes, error) {
 	return nil, status.Error(codes.Unimplemented, "method UndoReservedExpiredSeats not implemented")
+}
+func (UnimplementedEventServiceServer) GetReservedExpiredSeats(context.Context, *GetReservedExpiredSeatsReq) (*GetReservedExpiredSeatsRes, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetReservedExpiredSeats not implemented")
 }
 func (UnimplementedEventServiceServer) mustEmbedUnimplementedEventServiceServer() {}
 func (UnimplementedEventServiceServer) testEmbeddedByValue()                      {}
@@ -547,6 +563,24 @@ func _EventService_UndoReservedExpiredSeats_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _EventService_GetReservedExpiredSeats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetReservedExpiredSeatsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).GetReservedExpiredSeats(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_GetReservedExpiredSeats_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).GetReservedExpiredSeats(ctx, req.(*GetReservedExpiredSeatsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // EventService_ServiceDesc is the grpc.ServiceDesc for EventService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -609,6 +643,10 @@ var EventService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UndoReservedExpiredSeats",
 			Handler:    _EventService_UndoReservedExpiredSeats_Handler,
+		},
+		{
+			MethodName: "GetReservedExpiredSeats",
+			Handler:    _EventService_GetReservedExpiredSeats_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

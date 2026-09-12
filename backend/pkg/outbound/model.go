@@ -19,6 +19,6 @@ type OutboundEvent struct {
 	Topic     string
 	EventType string
 	Payload   json.RawMessage
-	PublishAt time.Time
+	PublishAt *time.Time
 	Status    OutboundStatus
 }

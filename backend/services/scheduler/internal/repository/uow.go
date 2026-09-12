@@ -32,13 +32,6 @@ func (u *UnitOfWorkImpl) Execute(ctx context.Context, fn func(repos *UowRepos) e
 		return err
 	}
 
-	defer func() {
-		err := tx.Rollback(ctx)
-		if err != nil {
-			fmt.Println("fail to roll back the transaction: %w", err)
-		}
-	}()
-
 	repos := &UowRepos{
 		schedulerConfigRepo: NewSchedulerConfigRepo(u.pool, &tx),
 		outboundEventRepo:   NewOutboundEventRepository(u.pool, &tx),
@@ -46,6 +39,7 @@ func (u *UnitOfWorkImpl) Execute(ctx context.Context, fn func(repos *UowRepos) e
 
 	err = fn(repos)
 	if err != nil {
+		fmt.Println("fail to execute the function in the transaction: %w", err)
 		return tx.Rollback(ctx)
 	}
 	return tx.Commit(ctx)

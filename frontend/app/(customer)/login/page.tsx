@@ -19,8 +19,12 @@ export default function LoginPage() {
     setError("");
     setIsLoading(true);
     try {
-      await login(email, password);
-      router.push("/");
+      const user = await login(email, password);
+      // Honor an auth-bounce ?redirect= (e.g. from the admin guard),
+      // otherwise land admins in the ops console and customers on Discover.
+      const redirectParam = new URLSearchParams(window.location.search).get("redirect");
+      const fallback = user.role === "admin" ? "/admin" : "/";
+      router.push(redirectParam || fallback);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

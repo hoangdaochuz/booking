@@ -40,6 +40,7 @@ func (o *SchedulerConfigConsumer) ConsumerHandler(ctx context.Context, event pkg
 		if err != nil {
 			o.logger.Sugar().Error("[SchedulerConfigConsumer][SchedulerConfigChanged] Fail to unmarshal payload", zap.Error(err))
 		}
+		o.logger.Info("[SchedulerConfigConsumer][SchedulerConfigChanged] Received scheduler config changed event", zap.String("job-name", payload.Name), zap.Duration("timeout", payload.Timeout))
 		return o.service.HandleSchedulerConfigChanged(ctx, payload)
 	default:
 		o.logger.Sugar().Warn("[SchedulerConfigConsumer] The type of event is out of available event types")

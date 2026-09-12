@@ -13,8 +13,8 @@ interface User {
 interface AuthState {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
+  register: (email: string, password: string, name: string) => Promise<User>;
   logout: () => Promise<void>;
 }
 
@@ -43,12 +43,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await apiClient.login(email, password);
-    setUser({ id: res.user.id, email: res.user.email, name: res.user.name, role: res.user.role });
+    const user = { id: res.user.id, email: res.user.email, name: res.user.name, role: res.user.role };
+    setUser(user);
+    return user;
   }, []);
 
   const register = useCallback(async (email: string, password: string, name: string) => {
     const res = await apiClient.register(email, password, name);
-    setUser({ id: res.user.id, email: res.user.email, name: res.user.name, role: res.user.role });
+    const user = { id: res.user.id, email: res.user.email, name: res.user.name, role: res.user.role };
+    setUser(user);
+    return user;
   }, []);
 
   const logout = useCallback(async () => {

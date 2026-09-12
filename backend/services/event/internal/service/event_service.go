@@ -237,7 +237,7 @@ func (s *EventService) ReservedOrCompensateBatchSeats(ctx context.Context, req *
 	})
 }
 
-func (s *EventService) UndoReservedExpiredSeats(ctx context.Context) (*repository.UndoReservedExpiredSeatsResult, error) {
+func (s *EventService) UndoReservedExpiredSeats(ctx context.Context) (*repository.ReservedExpiredSeatsResult, error) {
 	result, err := s.seatRepo.UndoReservedExpiredSeats(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("[UndoReservedExpiredSeats]: %w", err)
@@ -246,5 +246,13 @@ func (s *EventService) UndoReservedExpiredSeats(ctx context.Context) (*repositor
 	s.logger.Info("Released expired reserved seats",
 		zap.Int("booking_count", len(result.BookingIdSeatIdsMap)))
 
+	return result, nil
+}
+
+func (s *EventService) GetReservedExpiredSeats(ctx context.Context) (*repository.ReservedExpiredSeatsResult, error) {
+	result, err := s.seatRepo.GetReservedExpiredSeats(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("[GetReservedExpiredSeats]: %w", err)
+	}
 	return result, nil
 }

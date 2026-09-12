@@ -37,13 +37,18 @@ func (s *SchedulerService) ListSchedulersConfig(ctx context.Context) ([]domain.S
 
 func (s *SchedulerService) UpdateSchedulerConfigById(ctx context.Context, id uuid.UUID, target domain.SchedulerConfig) error {
 	return s.uow.Execute(ctx, func(repos *repository.UowRepos) error {
-		err := repos.SchedulerConfigRepo().UpdateById(ctx, id, target)
+		updatedConfig, err := repos.SchedulerConfigRepo().UpdateById(ctx, id, target)
 		if err != nil {
 			s.logger.Sugar().Error("[SchedulerService][UpdateSchedulerConfigById] Fail to update scheduler config", zap.Error(err))
 			return err
 		}
+		if updatedConfig == nil {
+			s.logger.Sugar().Error("[SchedulerService][UpdateSchedulerConfigById] Scheduler config didn't change, no need to create outbound event")
+			return nil
+		}
 
-		payload, err := json.Marshal(target)
+		s.logger.Info("[SchedulerService][UpdateSchedulerConfigById] Scheduler config updated", zap.String("id", updatedConfig.Id.String()), zap.String("name", updatedConfig.Name), zap.Bool("is_enabled", updatedConfig.IsEnabled), zap.String("interval_expression", updatedConfig.IntervalExpression), zap.Duration("timeout", updatedConfig.Timeout))
+		payload, err := json.Marshal(*updatedConfig)
 		if err != nil {
 			s.logger.Sugar().Error("[SchedulerService][UpdateSchedulerConfigById] Fail to marshal target scheduler config", zap.Error(err))
 			return err

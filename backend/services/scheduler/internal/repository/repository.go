@@ -10,7 +10,7 @@ import (
 
 type SchedulerRepository interface {
 	ListSchedulersConfig(ctx context.Context) ([]domain.SchedulerConfig, error)
-	UpdateById(ctx context.Context, id uuid.UUID, target domain.SchedulerConfig) error
+	UpdateById(ctx context.Context, id uuid.UUID, target domain.SchedulerConfig) (*domain.SchedulerConfig, error)
 }
 
 type OutboundEventRepository interface {

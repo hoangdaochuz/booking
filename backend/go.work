@@ -8,5 +8,6 @@ use (
 	./services/notification
 	./services/payment
 	./services/saga
+	./services/scheduler
 	./services/user
 )

@@ -23,15 +23,22 @@ service EventService {
     rpc GetSeatsBySeatIds(GetSeatsBySeatIdsRequest)returns (GetSeatsResponse);
     rpc ReservedOrCompensateBatchSeats(ReservedOrCompensateBatchSeatsReq) returns (ReservedOrCompensateBatchSeatsRes);
     rpc UndoReservedExpiredSeats(UndoReservedExpiredSeatsReq) returns (UndoReservedExpiredSeatsRes);
+    rpc GetReservedExpiredSeats(GetReservedExpiredSeatsReq) returns (GetReservedExpiredSeatsRes);
 }
 
 message UndoReservedExpiredSeatsRes{
     map<string, SeatIds> booking_seat_ids_map = 1;
 }
 
+message GetReservedExpiredSeatsRes{
+    map<string, SeatIds> booking_seat_ids_map = 1;
+}
+
 message SeatIds{
     repeated string seat_ids = 1; 
 }
+
+message GetReservedExpiredSeatsReq {}
 
 message UndoReservedExpiredSeatsReq {}
 

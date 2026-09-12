@@ -317,6 +317,8 @@ services:
       DATABASE_URL: postgres://ticketbox:${POSTGRES_PASSWORD:-ticketbox_secret}@postgres-scheduler:5432/ticketbox_scheduler?sslmode=disable
       KAFKA_BROKERS: kafka:29092
       BOOKING_SERVICE_ADDR: booking-service:50053
+      EVENT_SERVICE_ADDR: event-service:50052
+      PAYMENT_SERVICE_ADDR: payment-service:50054
       REDIS_URL: redis://redis:6379
     depends_on:
       postgres-scheduler:
@@ -359,12 +361,14 @@ services:
       EVENT_SERVICE_ADDR: event-service:50052
       BOOKING_SERVICE_ADDR: booking-service:50053
       PAYMENT_SERVICE_ADDR: payment-service:50054
+      SCHEDULER_SERVICE_ADDR: scheduler-service:50056
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-your-jwt-secret-change-in-production}
     depends_on:
       - user-service
       - event-service
       - booking-service
+      - scheduler-service
       - redis
     networks:
       - ticketbox-net
